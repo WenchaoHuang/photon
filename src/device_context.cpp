@@ -134,10 +134,10 @@ std::shared_ptr<Module> DeviceContext::createModule(const unsigned char * ptxStr
 }
 
 
-std::shared_ptr<Program> DeviceContext::getBuiltinISProgram(OptixBuiltinISOptions builtinISOptions, const OptixPipelineCompileOptions & pipelineCompileOptions)
+ProgramEntry DeviceContext::getBuiltinISEntry(OptixBuiltinISOptions builtinISOptions, const OptixPipelineCompileOptions & pipelineCompileOptions)
 {
-	// 1. Get builtin IS module
 	OptixModule hBuiltinModule = nullptr;
+
 	OptixModuleCompileOptions moduleCompileOptions = {};
 
 	OptixResult err = optixBuiltinISModuleGet(m_hContext, &moduleCompileOptions, &pipelineCompileOptions, &builtinISOptions, &hBuiltinModule);
@@ -146,31 +146,13 @@ std::shared_ptr<Program> DeviceContext::getBuiltinISProgram(OptixBuiltinISOption
 	{
 		NS_ERROR_LOG("%s.", optixGetErrorString(err));
 
-		return nullptr;
+		return ProgramEntry(nullptr, Program::Unknow, "");
 	}
 
-	// 2. Create hitgroup program with builtin IS (no entry function name)
-	OptixProgramGroup hProgramGroup = nullptr;
-	OptixProgramGroupDesc desc = { .flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-	OptixProgramGroupOptions options = {};
+	// Wrap the builtin module in a ModuleImpl for lifetime management
+	auto module = std::make_shared<ModuleImpl>(this->shared_from_this(), hBuiltinModule);
 
-	desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-	desc.hitgroup.entryFunctionNameIS = nullptr;
-	desc.hitgroup.moduleIS = hBuiltinModule;
-
-	err = optixProgramGroupCreate(m_hContext, &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
-
-	if (err != OPTIX_SUCCESS)
-	{
-		NS_ERROR_LOG("%s.", optixGetErrorString(err));
-
-		optixModuleDestroy(hBuiltinModule);
-
-		return nullptr;
-	}
-
-	// 3. Wrap as ProgramImpl (module = nullptr, since builtin module is self-contained)
-	return std::make_shared<ProgramImpl>(nullptr, hProgramGroup, Program::BuiltinIntersection);
+	return ProgramEntry(module, Program::BuiltinIntersection, "__builtin_intersection__");
 }
 
 

@@ -35,6 +35,7 @@ namespace PHOTON_NAMESPACE
 	class Program;
 	class Pipeline;
 	class Denoiser;
+	class ProgramEntry;
 	class DeviceContext;
 
 	class AccelStruct;

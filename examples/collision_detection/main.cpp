@@ -73,10 +73,11 @@ int main()
 	OptixPipelineCompileOptions pipelineCompileOptions = {};
 	pipelineCompileOptions.pipelineLaunchParamsVariableName = "launchParams";
 	pipelineCompileOptions.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
-	auto module = deviceContext->createModule(collision_pipeline_optixir, moduleCompileOptions, pipelineCompileOptions);
-	auto intersectionProg = module->at("__intersection__");
-	auto raygenProg = module->at("__raygen__");
-	auto missProg = module->at("__miss__");
+	auto module = deviceContext->createModule(collision_pipeline_optixir, pipelineCompileOptions, moduleCompileOptions);
+
+	auto missProg = pt::Program::miss(module->entry("__miss__"));
+	auto raygenProg = pt::Program::raygen(module->entry("__raygen__"));
+	auto intersectionProg = pt::Program::hitgroup(module->entry("__intersection__"), {}, {});
 
 	pt::Pipeline pipeline(deviceContext, { raygenProg, intersectionProg, missProg }, pipelineCompileOptions);
 

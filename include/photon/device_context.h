@@ -22,6 +22,7 @@
 #pragma once
 
 #include "fwd.h"
+#include "pipeline.h"
 #include <optix.h>
 
 namespace PHOTON_NAMESPACE
@@ -117,12 +118,12 @@ namespace PHOTON_NAMESPACE
 		}
 
 		/**
-		 *	@brief		Get a built-in intersection program for the given primitive type.
+		 *	@brief		Get a built-in intersection entry for the given primitive type.
 		 *	@param[in]	builtinISOptions - Built-in intersection module options (primitive type, motion blur, etc.).
-		 *	@param[in]	pipelineCompileOptions - Pipeline compile options (must match the pipeline).
-		 *	@return		A program of type BuiltinIntersection, ready to be combined into a hit group.
+		 *	@param[in]	pipelineCompileOptions - Pipeline compile options. Must be identical for all modules within the same pipeline.
+		 *	@return		A ProgramEntry of type BuiltinIntersection, ready to be passed to Program::hitgroup().
 		 */
-		PHOTON_API std::shared_ptr<Program> getBuiltinISProgram(OptixBuiltinISOptions builtinISOptions, const OptixPipelineCompileOptions & pipelineCompileOptions);
+		PHOTON_API ProgramEntry getBuiltinISEntry(OptixBuiltinISOptions builtinISOptions, const OptixPipelineCompileOptions & pipelineCompileOptions);
 
 		//!	@brief		Create accel structs.
 		PHOTON_API std::unique_ptr<InstAccelStruct> createInstAccelStruct();

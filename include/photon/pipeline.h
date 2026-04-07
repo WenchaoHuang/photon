@@ -33,11 +33,11 @@ namespace PHOTON_NAMESPACE
 	/*****************************************************************************
 	********************************    Module    ********************************
 	*****************************************************************************/
-	
+
 	/**
 	 *	@brief		Abstract interface for an OptiX module.
 	 *	@note		Represents a compiled OptiX module that contains one or more
-	 *				program entry points. Programs can be retrieved by name.
+	 *				program entry points.
 	 */
 	class Module
 	{
@@ -47,26 +47,24 @@ namespace PHOTON_NAMESPACE
 		//!	Virtual destructor.
 		virtual ~Module() {}
 
-
 		/**
-		 *	@brief		Retrieve a program by its function entry name.
-		 *	@note		The function name must match one of the PTX entry points defined
-		 *				in this module, such as "__raygen__xxx" or "__miss__yyy".
-		 * @param[in]	funcName - The PTX function entry name.
-		 * @return		A shared pointer to the corresponding Program.
+		 *	@brief		Get a lightweight entry reference by function name.
+		 *	@note		Does not create any OptiX resources. The returned ProgramEntry should
+		 *				be passed to Program factory methods (raygen, miss, hitgroup, etc.).
+		 *	@param[in]	funcName - The PTX function entry name (e.g. "__raygen__", "__closesthit__xxx").
+		 *	@return		A valid ProgramEntry on success, or an invalid (empty) ProgramEntry on failure.
 		 */
-		virtual std::shared_ptr<Program> at(const std::string & funcName) = 0;
+		virtual ProgramEntry entry(const std::string & funcName) = 0;
 	};
 
 	/*****************************************************************************
 	*******************************    Program    ********************************
 	*****************************************************************************/
-	
+
 	/**
-	 *	@brief		Abstract interface for an OptiX program.
-	 *	@note		Represents a single OptiX program entry, such as a ray-generation,
-	 *				miss, hit, or callable program. Each program has a type and an
-	 *				associated SBT (Shader Binding Table) header.
+	 *	@brief		Represents an OptiX program group.
+	 *	@note		Each Program owns an OptixProgramGroup and its SBT header.
+	 *				Create via static factory methods: raygen(), miss(), exception(), hitgroup(), callables().
 	 */
 	class Program
 	{
@@ -75,7 +73,6 @@ namespace PHOTON_NAMESPACE
 
 		/**
 		 *	@brief	Supported OptiX program types.
-		 *	@note	Each type corresponds to a specific OptiX program entry function prefix or grouping.
 		 */
 		enum Type
 		{
@@ -102,9 +99,56 @@ namespace PHOTON_NAMESPACE
 		//!	Get the SBT header for this program.
 		virtual const SbtHeader & header() const = 0;
 
-		//	TODO
-		PHOTON_API static std::shared_ptr<Program> combine(std::shared_ptr<Program> program0, std::shared_ptr<Program> program1);
-		PHOTON_API static std::shared_ptr<Program> combine(std::shared_ptr<Program> program0, std::shared_ptr<Program> program1, std::shared_ptr<Program> program2);
+		//!	@brief		Create a miss program group.
+		PHOTON_API static std::shared_ptr<Program> miss(const ProgramEntry & entry);
+
+		//!	@brief		Create a raygen program group.
+		PHOTON_API static std::shared_ptr<Program> raygen(const ProgramEntry & entry);
+
+		//!	@brief		Create an exception program group.
+		PHOTON_API static std::shared_ptr<Program> exception(const ProgramEntry & entry);
+
+		//!	@brief		Create a callables program group. Either entry can be empty.
+		PHOTON_API static std::shared_ptr<Program> callables(const ProgramEntry & dc, const ProgramEntry & cc);
+
+		//!	@brief		Create a hitgroup program group. Any entry can be empty (default ProgramEntry{}).
+		PHOTON_API static std::shared_ptr<Program> hitgroup(const ProgramEntry & is, const ProgramEntry & ch, const ProgramEntry & ah);
+	};
+
+	/*****************************************************************************
+	*****************************    ProgramEntry    *****************************
+	*****************************************************************************/
+
+	/**
+	 *	@brief		Lightweight reference to a shader entry point.
+	 *	@note		Does not create any OptiX resources. Pass to Program factory methods to create program groups.
+	 */
+	class ProgramEntry
+	{
+		friend class Program;
+
+	public:
+
+		//!	@brief	Default constructor creates an invalid entry.
+		ProgramEntry() = default;
+
+		//!	@brief	Construct a ProgramEntry with the given module, entry name, and program type.
+		explicit ProgramEntry(std::shared_ptr<Module> module, Program::Type type, std::string entryName)
+			: m_module(std::move(module)), m_entryName(std::move(entryName)), m_type(type) {}
+
+	public:
+
+		//!	@brief		Check if this entry is valid.
+		bool valid() const { return m_module != nullptr; }
+
+		//!	@brief		Return the program type.
+		Program::Type type() const { return m_type; }
+
+	private:
+
+		const std::shared_ptr<Module>		m_module;
+		const std::string					m_entryName;	//!	for debug
+		const Program::Type					m_type = Program::Unknow;
 	};
 
 	/*****************************************************************************

@@ -23,13 +23,9 @@
 
 #include "pipeline.h"
 #include <optix.h>
-#include <map>
 
 namespace PHOTON_NAMESPACE
 {
-	class ModuleImpl;
-	class ProgramImpl;
-
 	/*****************************************************************************
 	******************************    ModuleImpl    ******************************
 	*****************************************************************************/
@@ -45,13 +41,17 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		virtual std::shared_ptr<Program> at(const std::string & funcName) override;
+		virtual ProgramEntry entry(const std::string & funcName) override;
 
 		std::shared_ptr<DeviceContext> deviceContext() const { return m_deviceContext; }
 
+		OptixModule handle() const { return m_hModule; }
+
 	private:
 
-		std::map<std::string, std::weak_ptr<ProgramImpl>>		m_programMap;
+		static Program::Type queryProgramType(const std::string & funcName);
+
+	private:
 
 		const std::shared_ptr<DeviceContext>					m_deviceContext;
 
@@ -67,30 +67,23 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		ProgramImpl(std::shared_ptr<ModuleImpl> module, OptixProgramGroup hProgramGroup, Program::Type type);
+		ProgramImpl(std::shared_ptr<DeviceContext> context, OptixProgramGroup hProgramGroup, Program::Type type);
 
 		~ProgramImpl();
 
 	public:
 
-		virtual Type type() const override { return m_progType; }
-
 		virtual const SbtHeader & header() const override { return m_header; }
 
-		static Program::Type queryProgramType(const std::string & funcName);
-
-		std::shared_ptr<DeviceContext> deviceContext() const;
+		virtual Type type() const override { return m_progType; }
 
 		OptixProgramGroup handle() { return m_hProgramGroup; }
 
 	private:
 
-		const std::shared_ptr<ModuleImpl>		m_module;
-
-		const OptixProgramGroup					m_hProgramGroup;
-
-		const Program::Type						m_progType;
-
-		SbtHeader								m_header;
+		const OptixProgramGroup								m_hProgramGroup;
+		const std::shared_ptr<DeviceContext>				m_deviceContext;
+		const Program::Type									m_progType;
+		SbtHeader											m_header;
 	};
 }

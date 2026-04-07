@@ -51,48 +51,60 @@ void pipeline_test()
 	auto devProp = context->properties();
 	auto module = context->createModule(rt_program_optixir, pipelineCompileOptions);
 
-	auto program0 = module->at("");								//	error: empty function name
-	auto program1 = module->at("xxxxx");						//	error: invalid function name
-	auto program2 = module->at("__raygen__");
-	auto program3 = module->at("__raygen__");
-	auto program4 = module->at("__raygen__xx");					//	error: not found
-	auto program5 = module->at("__exception__");
-	auto program6 = module->at("__direct_callable__");
-	auto program7 = module->at("__continuation_callable__");
-	auto program8 = module->at("__intersection__");
-	auto program9 = module->at("__closesthit__");
-	auto program10 = module->at("__anyhit__");
-	auto program11 = module->at("__miss__");
-	auto program12 = pt::Program::combine(program6, program7);
-	auto program13 = pt::Program::combine(program8, program9, program10);
+	auto entry0 = module->entry("");							//	error: empty function name
+	auto entry1 = module->entry("xxxxx");						//	error: invalid function name
+	auto entry_rg = module->entry("__raygen__");
+	auto entry_ex = module->entry("__exception__");
+	auto entry_dc = module->entry("__direct_callable__");
+	auto entry_cc = module->entry("__continuation_callable__");
+	auto entry_is = module->entry("__intersection__");
+	auto entry_ch = module->entry("__closesthit__");
+	auto entry_ah = module->entry("__anyhit__");
+	auto entry_ms = module->entry("__miss__");
+
+	assert(!entry0.valid());
+	assert(!entry1.valid());
+	assert(entry_rg.valid());
+	assert(entry_ch.valid());
+	assert(entry_ms.valid());
+
+	assert(entry_rg.type() == pt::Program::Raygen);
+	assert(entry_ex.type() == pt::Program::Exception);
+	assert(entry_dc.type() == pt::Program::DirectCallable);
+	assert(entry_cc.type() == pt::Program::ContinuationCallable);
+	assert(entry_is.type() == pt::Program::Intersection);
+	assert(entry_ch.type() == pt::Program::ClosestHit);
+	assert(entry_ah.type() == pt::Program::AnyHit);
+	assert(entry_ms.type() == pt::Program::Miss);
+
+	auto program_ms = pt::Program::miss(entry_ms);
+	auto program_rg = pt::Program::raygen(entry_rg);
+	auto program_ex = pt::Program::exception(entry_ex);
+	auto program_hg = pt::Program::hitgroup(entry_is, entry_ch, entry_ah);
+	auto program_cg = pt::Program::callables(entry_dc, entry_cc);
+	auto program_ch = pt::Program::hitgroup({}, entry_ch, {});
 
 	OptixBuiltinISOptions builtinISOptions = {};
 	builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
-	auto program14 = context->getBuiltinISProgram(builtinISOptions, pipelineCompileOptions);
+	auto builtin_is = context->getBuiltinISEntry(builtinISOptions, pipelineCompileOptions);
+	auto program_bi = pt::Program::hitgroup(builtin_is, entry_ch, {});
 
-	assert(program0 == nullptr);
-	assert(program1 == nullptr);
-	assert(program2 != nullptr);
-	assert(program3 == program2);
-	assert(program4 == nullptr);
-	assert(program5 != nullptr);
-	assert(program6 != nullptr);
-	assert(program7 != nullptr);
-	assert(program8 != nullptr);
-	assert(program9 != nullptr);
-	assert(program10 != nullptr);
-	assert(program11 != nullptr);
-	assert(program14 != nullptr);
+	assert(builtin_is.valid());
+	assert(program_rg != nullptr);
+	assert(program_ms != nullptr);
+	assert(program_ex != nullptr);
+	assert(program_hg != nullptr);
+	assert(program_cg != nullptr);
+	assert(program_ch != nullptr);
+	assert(program_bi != nullptr);
 
-	assert(program2->type() == pt::Program::Raygen);
-	assert(program3->type() == pt::Program::Raygen);
-	assert(program5->type() == pt::Program::Exception);
-	assert(program6->type() == pt::Program::DirectCallable);
-	assert(program7->type() == pt::Program::ContinuationCallable);
-	assert(program8->type() == pt::Program::Intersection);
-	assert(program9->type() == pt::Program::ClosestHit);
-	assert(program10->type() == pt::Program::AnyHit);
-	assert(program11->type() == pt::Program::Miss);
+	assert(program_ms->type() == pt::Program::Miss);
+	assert(program_rg->type() == pt::Program::Raygen);
+	assert(program_hg->type() == pt::Program::HitGroup);
+	assert(program_ch->type() == pt::Program::HitGroup);
+	assert(program_bi->type() == pt::Program::HitGroup);
+	assert(program_ex->type() == pt::Program::Exception);
+	assert(program_cg->type() == pt::Program::CallableGroup);
 
 	ns::Array<LaunchParams>			launchParams(allocator, 1);
 	ns::Array<pt::EmptyRecord>		raygenRecord(allocator, 1);
@@ -104,9 +116,9 @@ void pipeline_test()
 	sbt.missRecordStrideInBytes = sizeof(pt::EmptyRecord);
 	sbt.missRecordCount = 1;
 
-	stream.memcpy<void>(missRecord.data(), program11->header().storage, sizeof(pt::SbtHeader));
-	stream.memcpy<void>(raygenRecord.data(), program2->header().storage, sizeof(pt::SbtHeader));
+	stream.memcpy<void>(missRecord.data(), program_ms->header().storage, sizeof(pt::SbtHeader));
+	stream.memcpy<void>(raygenRecord.data(), program_rg->header().storage, sizeof(pt::SbtHeader));
 
-	pt::Pipeline pipeline = pt::Pipeline(context, { program2, program9, program11, program14 }, pipelineCompileOptions);
+	pt::Pipeline pipeline = pt::Pipeline(context, { program_rg, program_ch, program_ms, program_bi }, pipelineCompileOptions);
 	pipeline.launch<LaunchParams>(stream, launchParams, sbt, 10, 1).sync();
 }

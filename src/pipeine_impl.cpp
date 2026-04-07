@@ -38,108 +38,39 @@ ModuleImpl::ModuleImpl(std::shared_ptr<DeviceContext> deviceContext, OptixModule
 }
 
 
-std::shared_ptr<Program> ModuleImpl::at(const std::string & funcName)
+Program::Type ModuleImpl::queryProgramType(const std::string & funcName)
 {
-	// 1. Validation
-	auto progType = ProgramImpl::queryProgramType(funcName);
+	if (funcName.starts_with("__miss__"))							return Program::Miss;
+	else if (funcName.starts_with("__raygen__"))					return Program::Raygen;
+	else if (funcName.starts_with("__anyhit__"))					return Program::AnyHit;
+	else if (funcName.starts_with("__exception__"))					return Program::Exception;
+	else if (funcName.starts_with("__closesthit__"))				return Program::ClosestHit;
+	else if (funcName.starts_with("__intersection__"))				return Program::Intersection;
+	else if (funcName.starts_with("__direct_callable__"))			return Program::DirectCallable;
+	else if (funcName.starts_with("__builtin_intersection__"))		return Program::BuiltinIntersection;
+	else if (funcName.starts_with("__continuation_callable__"))		return Program::ContinuationCallable;
+	else															return Program::Unknow;
+}
+
+
+ProgramEntry ModuleImpl::entry(const std::string & funcName)
+{
+	auto progType = queryProgramType(funcName);
 
 	if (funcName.empty())
 	{
 		NS_ERROR_LOG("Empty function name!");
 
-		return nullptr;
+		return ProgramEntry(nullptr, Program::Unknow, "");
 	}
 	else if ((progType == Program::Unknow) || (progType == Program::BuiltinIntersection))
 	{
 		NS_ERROR_LOG("Invalid function name: %s", funcName.c_str());
 
-		return nullptr;
+		return ProgramEntry(nullptr, Program::Unknow, "");
 	}
 
-	// 2. Check
-	auto iter = m_programMap.find(funcName);
-
-	if (iter != m_programMap.end())
-	{
-		if (!iter->second.expired())
-		{
-			auto program = iter->second.lock();
-
-			if (program != nullptr)
-			{
-				return program;
-			}
-		}
-	}
-
-	// 3. Create single program.
-	OptixProgramGroup hProgramGroup = nullptr;
-	OptixProgramGroupDesc programGroupDesc = { .flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-	OptixProgramGroupOptions programGroupOptions = {};
-
-	if (progType == Program::Raygen)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-		programGroupDesc.raygen.module = m_hModule;
-		programGroupDesc.raygen.entryFunctionName = funcName.c_str();
-	}
-	else if (progType == Program::Miss)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
-		programGroupDesc.miss.module = m_hModule;
-		programGroupDesc.miss.entryFunctionName = funcName.c_str();
-	}
-	else if (progType == Program::AnyHit)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-		programGroupDesc.hitgroup.moduleAH = m_hModule;
-		programGroupDesc.hitgroup.entryFunctionNameAH = funcName.c_str();
-	}
-	else if (progType == Program::ClosestHit)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-		programGroupDesc.hitgroup.moduleCH = m_hModule;
-		programGroupDesc.hitgroup.entryFunctionNameCH = funcName.c_str();
-	}
-	else if (progType == Program::Intersection)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-		programGroupDesc.hitgroup.moduleIS = m_hModule;
-		programGroupDesc.hitgroup.entryFunctionNameIS = funcName.c_str();
-	}
-	else if (progType == Program::DirectCallable)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-		programGroupDesc.callables.entryFunctionNameDC = funcName.c_str();
-		programGroupDesc.callables.moduleDC = m_hModule;
-	}
-	else if (progType == Program::ContinuationCallable)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-		programGroupDesc.callables.entryFunctionNameCC = funcName.c_str();
-		programGroupDesc.callables.moduleCC = m_hModule;
-	}
-	else if (progType == Program::Exception)
-	{
-		programGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_EXCEPTION;
-		programGroupDesc.exception.module = m_hModule;
-		programGroupDesc.exception.entryFunctionName = funcName.c_str();
-	}
-
-	OptixResult err = optixProgramGroupCreate(m_deviceContext->handle(), &programGroupDesc, 1, &programGroupOptions, nullptr, nullptr, &hProgramGroup);
-
-	if (err != OPTIX_SUCCESS)
-	{
-		NS_ERROR_LOG_IF(err != OPTIX_SUCCESS, "%s.", optixGetErrorString(err));
-
-		return nullptr;
-	}
-
-	auto program = std::make_shared<ProgramImpl>(this->shared_from_this(), hProgramGroup, progType);
-
-	m_programMap[funcName] = program;
-
-	return program;
+	return ProgramEntry(this->shared_from_this(), progType, funcName);
 }
 
 
@@ -157,8 +88,8 @@ ModuleImpl::~ModuleImpl()
 *******************************    ProgramImpl    ********************************
 *********************************************************************************/
 
-ProgramImpl::ProgramImpl(std::shared_ptr<ModuleImpl> module, OptixProgramGroup hProgramGroup, Program::Type type)
-	: m_module(module), m_hProgramGroup(hProgramGroup), m_progType(type)
+ProgramImpl::ProgramImpl(std::shared_ptr<DeviceContext> context, OptixProgramGroup hProgramGroup, Program::Type type)
+	: m_deviceContext(context), m_hProgramGroup(hProgramGroup), m_progType(type)
 {
 	OptixResult err = optixSbtRecordPackHeader(m_hProgramGroup, m_header.storage);
 
@@ -171,54 +102,283 @@ ProgramImpl::ProgramImpl(std::shared_ptr<ModuleImpl> module, OptixProgramGroup h
 }
 
 
-std::shared_ptr<Program> Program::combine(std::shared_ptr<Program> program0, std::shared_ptr<Program> program1)
+std::shared_ptr<Program> Program::raygen(const ProgramEntry & entry)
 {
-	auto impl_0 = std::dynamic_pointer_cast<ProgramImpl>(program0);
-	auto impl_1 = std::dynamic_pointer_cast<ProgramImpl>(program1);
-
-	//	TODO
-
-	return nullptr;
-}
-
-
-std::shared_ptr<Program> Program::combine(std::shared_ptr<Program> program0, std::shared_ptr<Program> program1, std::shared_ptr<Program> program2)
-{
-	auto impl_0 = std::dynamic_pointer_cast<ProgramImpl>(program0);
-	auto impl_1 = std::dynamic_pointer_cast<ProgramImpl>(program1);
-	auto impl_2 = std::dynamic_pointer_cast<ProgramImpl>(program2);
-
-	if (!impl_0 || !impl_1 || !impl_2)
+	if (!entry.valid() || entry.m_type != Raygen)
 	{
-		NS_ERROR_LOG("Invalid program!");
-	}
-	else
-	{
-		//	TODO
+		NS_ERROR_LOG("Invalid raygen entry!");
+
+		return nullptr;
 	}
 
-	return nullptr;
+	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(entry.m_module);
+
+	if (!moduleImpl)
+	{
+		NS_ERROR_LOG("Invalid module!");
+
+		return nullptr;
+	}
+
+	OptixProgramGroupOptions options = {};
+	OptixProgramGroup hProgramGroup = nullptr;
+	auto context = moduleImpl->deviceContext();
+
+	OptixProgramGroupDesc desc = {};
+	desc.raygen.module = moduleImpl->handle();
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+	desc.raygen.entryFunctionName = entry.m_entryName.c_str();
+
+	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
+
+	if (err != OPTIX_SUCCESS)
+	{
+		NS_ERROR_LOG("%s.", optixGetErrorString(err));
+
+		return nullptr;
+	}
+
+	return std::make_shared<ProgramImpl>(context, hProgramGroup, Raygen);
 }
 
 
-Program::Type ProgramImpl::queryProgramType(const std::string & funcName)
+std::shared_ptr<Program> Program::miss(const ProgramEntry & entry)
 {
-	if (funcName.starts_with("__miss__"))							return Program::Miss;
-	else if (funcName.starts_with("__raygen__"))					return Program::Raygen;
-	else if (funcName.starts_with("__anyhit__"))					return Program::AnyHit;
-	else if (funcName.starts_with("__exception__"))					return Program::Exception;
-	else if (funcName.starts_with("__closesthit__"))				return Program::ClosestHit;
-	else if (funcName.starts_with("__intersection__"))				return Program::Intersection;
-	else if (funcName.starts_with("__direct_callable__"))			return Program::DirectCallable;
-	else if (funcName.starts_with("__builtin_intersection__"))		return Program::BuiltinIntersection;
-	else if (funcName.starts_with("__continuation_callable__"))		return Program::ContinuationCallable;
-	else															return Program::Unknow;
+	if (!entry.valid() || entry.m_type != Miss)
+	{
+		NS_ERROR_LOG("Invalid miss entry!");
+
+		return nullptr;
+	}
+
+	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(entry.m_module);
+
+	if (!moduleImpl)
+	{
+		NS_ERROR_LOG("Invalid module!");
+
+		return nullptr;
+	}
+
+	OptixProgramGroupOptions options = {};
+	OptixProgramGroup hProgramGroup = nullptr;
+	auto context = moduleImpl->deviceContext();
+
+	OptixProgramGroupDesc desc = {};
+	desc.miss.module = moduleImpl->handle();
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.miss.entryFunctionName = entry.m_entryName.c_str();
+
+	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
+
+	if (err != OPTIX_SUCCESS)
+	{
+		NS_ERROR_LOG("%s.", optixGetErrorString(err));
+
+		return nullptr;
+	}
+
+	return std::make_shared<ProgramImpl>(context, hProgramGroup, Miss);
 }
 
 
-std::shared_ptr<DeviceContext> ProgramImpl::deviceContext() const
+std::shared_ptr<Program> Program::exception(const ProgramEntry & entry)
 {
-	return m_module ? m_module->deviceContext() : nullptr;
+	if (!entry.valid() || entry.m_type != Exception)
+	{
+		NS_ERROR_LOG("Invalid exception entry!");
+
+		return nullptr;
+	}
+
+	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(entry.m_module);
+
+	if (!moduleImpl)
+	{
+		NS_ERROR_LOG("Invalid module!");
+
+		return nullptr;
+	}
+
+	OptixProgramGroupOptions options = {};
+	OptixProgramGroup hProgramGroup = nullptr;
+	auto context = moduleImpl->deviceContext();
+
+	OptixProgramGroupDesc desc = {};
+	desc.exception.module = moduleImpl->handle();
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_EXCEPTION;
+	desc.exception.entryFunctionName = entry.m_entryName.c_str();
+
+	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
+
+	if (err != OPTIX_SUCCESS)
+	{
+		NS_ERROR_LOG("%s.", optixGetErrorString(err));
+
+		return nullptr;
+	}
+
+	return std::make_shared<ProgramImpl>(context, hProgramGroup, Exception);
+}
+
+
+std::shared_ptr<Program> Program::callables(const ProgramEntry & dc, const ProgramEntry & cc)
+{
+	if (!dc.valid() && !cc.valid())
+	{
+		NS_ERROR_LOG("At least one callable entry must be valid!");
+
+		return nullptr;
+	}
+	else if (dc.valid() && dc.m_type != DirectCallable)
+	{
+		NS_ERROR_LOG("Invalid direct callable entry!");
+
+		return nullptr;
+	}
+	else if (cc.valid() && cc.m_type != ContinuationCallable)
+	{
+		NS_ERROR_LOG("Invalid continuation callable entry!");
+
+		return nullptr;
+	}
+
+	std::shared_ptr<DeviceContext> context;
+
+	for (auto & e : { dc, cc })
+	{
+		if (auto m = std::dynamic_pointer_cast<ModuleImpl>(e.m_module))
+		{
+			context = m->deviceContext();
+
+			break;
+		}
+	}
+
+	if (!context)
+	{
+		NS_ERROR_LOG("Invalid device context!");
+
+		return nullptr;
+	}
+
+	OptixProgramGroup hProgramGroup = nullptr;
+	OptixProgramGroupOptions options = {};
+
+	OptixProgramGroupDesc desc = {};
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
+
+	if (dc.valid())
+	{
+		desc.callables.moduleDC = std::dynamic_pointer_cast<ModuleImpl>(dc.m_module)->handle();
+		desc.callables.entryFunctionNameDC = dc.m_entryName.c_str();
+	}
+
+	if (cc.valid())
+	{
+		desc.callables.moduleCC = std::dynamic_pointer_cast<ModuleImpl>(cc.m_module)->handle();
+		desc.callables.entryFunctionNameCC = cc.m_entryName.c_str();
+	}
+
+	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
+
+	if (err != OPTIX_SUCCESS)
+	{
+		NS_ERROR_LOG("%s.", optixGetErrorString(err));
+
+		return nullptr;
+	}
+
+	return std::make_shared<ProgramImpl>(context, hProgramGroup, CallableGroup);
+}
+
+
+std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const ProgramEntry & ch, const ProgramEntry & ah)
+{
+	if (!is.valid() && !ch.valid() && !ah.valid())
+	{
+		NS_ERROR_LOG("At least one hitgroup entry must be valid!");
+
+		return nullptr;
+	}
+	else if (is.valid() && (is.m_type != Intersection) && (is.m_type != BuiltinIntersection))
+	{
+		NS_ERROR_LOG("Invalid intersection entry!");
+
+		return nullptr;
+	}
+	else if (ch.valid() && ch.m_type != ClosestHit)
+	{
+		NS_ERROR_LOG("Invalid closest hit entry!");
+
+		return nullptr;
+	}
+	else if (ah.valid() && ah.m_type != AnyHit)
+	{
+		NS_ERROR_LOG("Invalid any hit entry!");
+
+		return nullptr;
+	}
+
+	// Find context from any valid entry
+	std::shared_ptr<DeviceContext> context;
+
+	for (auto & e : { is, ch, ah })
+	{
+		if (auto m = std::dynamic_pointer_cast<ModuleImpl>(e.m_module))
+		{
+			context = m->deviceContext();
+
+			break;
+		}
+	}
+
+	if (!context)
+	{
+		NS_ERROR_LOG("Invalid device context!");
+
+		return nullptr;
+	}
+
+	OptixProgramGroup hProgramGroup = nullptr;
+	OptixProgramGroupOptions options = {};
+
+	OptixProgramGroupDesc desc = {};
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+
+	if (is.valid())
+	{
+		desc.hitgroup.moduleIS = std::dynamic_pointer_cast<ModuleImpl>(is.m_module)->handle();
+		desc.hitgroup.entryFunctionNameIS = (is.type() == Program::BuiltinIntersection) ? nullptr : is.m_entryName.c_str();
+	}
+
+	if (ch.valid())
+	{
+		desc.hitgroup.moduleCH = std::dynamic_pointer_cast<ModuleImpl>(ch.m_module)->handle();
+		desc.hitgroup.entryFunctionNameCH = ch.m_entryName.c_str();
+	}
+
+	if (ah.valid())
+	{
+		desc.hitgroup.moduleAH = std::dynamic_pointer_cast<ModuleImpl>(ah.m_module)->handle();
+		desc.hitgroup.entryFunctionNameAH = ah.m_entryName.c_str();
+	}
+
+	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
+
+	if (err != OPTIX_SUCCESS)
+	{
+		NS_ERROR_LOG("%s.", optixGetErrorString(err));
+
+		return nullptr;
+	}
+
+	return std::make_shared<ProgramImpl>(context, hProgramGroup, HitGroup);
 }
 
 
@@ -231,7 +391,6 @@ ProgramImpl::~ProgramImpl()
 		NS_ERROR_LOG_IF(err != OPTIX_SUCCESS, "%s.", optixGetErrorString(err));
 	}
 }
-
 
 /*********************************************************************************
 *********************************    Pipeline    *********************************
