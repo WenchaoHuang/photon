@@ -107,17 +107,17 @@ void pipeline_test()
 	assert(program_cg->type() == pt::Program::CallableGroup);
 
 	ns::Array<LaunchParams>			launchParams(allocator, 1);
-	ns::Array<pt::EmptyRecord>		raygenRecord(allocator, 1);
-	ns::Array<pt::EmptyRecord>		missRecord(allocator, 1);
+	ns::Array<pt::SbtRecord<>>		raygenRecord(allocator, 1);
+	ns::Array<pt::SbtRecord<>>		missRecord(allocator, 1);
 
 	OptixShaderBindingTable sbt = {};
 	sbt.raygenRecord = CUdeviceptr(raygenRecord.data());
 	sbt.missRecordBase = CUdeviceptr(missRecord.data());
-	sbt.missRecordStrideInBytes = sizeof(pt::EmptyRecord);
+	sbt.missRecordStrideInBytes = sizeof(pt::SbtRecord<>);
 	sbt.missRecordCount = 1;
 
-	stream.memcpy<void>(missRecord.data(), program_ms->header().storage, sizeof(pt::SbtHeader));
-	stream.memcpy<void>(raygenRecord.data(), program_rg->header().storage, sizeof(pt::SbtHeader));
+	stream.memcpy<void>(missRecord.data(), program_ms->header().storage, sizeof(pt::SbtRecord<>));
+	stream.memcpy<void>(raygenRecord.data(), program_rg->header().storage, sizeof(pt::SbtRecord<>));
 
 	pt::Pipeline pipeline = pt::Pipeline(context, { program_rg, program_ch, program_ms, program_bi }, pipelineCompileOptions);
 	pipeline.launch<LaunchParams>(stream, launchParams, sbt, 10, 1).sync();

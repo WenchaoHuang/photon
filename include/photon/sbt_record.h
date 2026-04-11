@@ -40,9 +40,9 @@ namespace PHOTON_NAMESPACE
 
 	/**
 	 *	@brief		Template struct for creating Shader Binding Table (SBT) records with specified alignment and data type.
-	 *	@tparam		SbtData - The type of data contained in the SBT record.
+	 *	@tparam		SbtData - The type of data to be stored in the SBT record. If `void`, the record will only contain the header.
 	 */
-	template<typename SbtData> struct NS_ALIGN(OPTIX_SBT_RECORD_ALIGNMENT) SbtRecord
+	template<typename SbtData = void> struct NS_ALIGN(OPTIX_SBT_RECORD_ALIGNMENT) SbtRecord
 	{
 		SbtHeader	header;		//	The header of the SBT record.
 		SbtData		data;		//	The data contained in the SBT record.
@@ -56,8 +56,4 @@ namespace PHOTON_NAMESPACE
 	{
 		SbtHeader	header;		//	The header of the SBT record.
 	};
-
-
-	//	Type alias
-	using EmptyRecord = SbtRecord<void>;
 }

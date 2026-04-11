@@ -83,9 +83,9 @@ int main()
 
 	//	device data
 	ns::Array<int>					devCount(allocator, 1);
-	ns::Array<pt::EmptyRecord>		devHitRecord(allocator, 1);
-	ns::Array<pt::EmptyRecord>		devMissRecord(allocator, 1);
-	ns::Array<pt::EmptyRecord>		devRaygenRecord(allocator, 1);
+	ns::Array<pt::SbtRecord<>>		devHitRecord(allocator, 1);
+	ns::Array<pt::SbtRecord<>>		devMissRecord(allocator, 1);
+	ns::Array<pt::SbtRecord<>>		devRaygenRecord(allocator, 1);
 	ns::Array<LaunchParams>			devLaunchParams(allocator, 1);
 	ns::Array<ns::float3_16a>		vertPos(allocator, leafPos.size());
 	ns::Array<pt::Aabb>				aabbBuffer(allocator, leafAabb.size());
@@ -116,10 +116,10 @@ int main()
 	OptixShaderBindingTable sbt = {};
 	sbt.raygenRecord = (CUdeviceptr)devRaygenRecord.data();
 	sbt.hitgroupRecordBase = (CUdeviceptr)devHitRecord.data();
-	sbt.hitgroupRecordStrideInBytes = sizeof(pt::EmptyRecord);
+	sbt.hitgroupRecordStrideInBytes = sizeof(pt::SbtRecord<>);
 	sbt.hitgroupRecordCount = 1;
 	sbt.missRecordBase = (CUdeviceptr)devMissRecord.data();
-	sbt.missRecordStrideInBytes = sizeof(pt::EmptyRecord);
+	sbt.missRecordStrideInBytes = sizeof(pt::SbtRecord<>);
 	sbt.missRecordCount = 1;
 
 	double timeCost = 0.0;
