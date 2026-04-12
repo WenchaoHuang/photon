@@ -458,6 +458,7 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 		optixBuildInputs[i].sphereArray.flags							= m_geomFlags[i].data();
 		optixBuildInputs[i].sphereArray.numVertices						= buildInputs[i].numVertices;
 		optixBuildInputs[i].sphereArray.vertexBuffers					= &m_vertBuffers[i];
+		optixBuildInputs[i].sphereArray.vertexStrideInBytes				= sizeof(ns::float3_16a);
 		optixBuildInputs[i].sphereArray.radiusBuffers					= &m_radiusBuffers[i];
 		optixBuildInputs[i].sphereArray.radiusStrideInBytes				= sizeof(float);
 		optixBuildInputs[i].sphereArray.singleRadius					= buildInputs[i].singleRadius;
