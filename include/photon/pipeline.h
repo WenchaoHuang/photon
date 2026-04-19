@@ -167,16 +167,39 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
+		//!	@brief	Default constructor creates an invalid pipeline.
+		Pipeline() : m_context(nullptr), m_hPipeline(nullptr) {}
+
 		//!	@brief	
 		PHOTON_API explicit Pipeline(SharedContext context,
 									 ns::ArrayProxy<std::shared_ptr<Program>> programs,
 									 const OptixPipelineCompileOptions & pipelineCompileOptions = OptixPipelineCompileOptions{},
 									 const OptixPipelineLinkOptions & pipelineLinkOptions = OptixPipelineLinkOptions{});
 
+		//!	@brief	Move constructor.
+		Pipeline(Pipeline && rhs) noexcept : m_context(std::exchange(rhs.m_context, nullptr)), m_hPipeline(std::exchange(rhs.m_hPipeline, nullptr)) {}
+
+		//!	@brief	Move assignment operator.
+		void operator=(Pipeline && rhs) noexcept { m_context = std::exchange(rhs.m_context, nullptr);	m_hPipeline = std::exchange(rhs.m_hPipeline, nullptr); }
+
 		//!	@brief	Destructor.
 		PHOTON_API ~Pipeline();
 
 	public:
+
+		/**
+		 *	@brief		Check if the pipeline is valid (i.e., successfully created).
+		 */
+		bool isValid() const { return m_hPipeline != nullptr; }
+
+
+		/**
+		 *	@brief		Explicit bool operator to check pipeline validity.
+		 *	@returns	`true` if the pipeline is valid (i.e., has a non-null handle), `false` otherwise.
+		 *	@note		Allows usage like: `if (pipeline) { ... }`
+		 */
+		operator bool() const { return m_hPipeline != nullptr; }
+
 
 		/**
 		 *	@brief		Launch the pipeline with the given parameters.
@@ -192,9 +215,9 @@ namespace PHOTON_NAMESPACE
 		 *	@note		Multiple launches may be issued in parallel from multiple threads as long as they target different CUDA streams.
 		 *	@warning	The stream and pipeline must belong to the same device context.
 		 */
-		template<typename Type> ns::Stream & launch(ns::Stream & stream, ns::dev::Ptr<const Type> pipelineParams, const OptixShaderBindingTable & sbt, size_t width, size_t height = 1, size_t depth = 1)
+		template<typename Type> ns::Stream & launch(ns::Stream & stream, ns::dev::Ptr<const Type> pipelineParams, const OptixShaderBindingTable & sbt, unsigned int width, unsigned int height = 1, unsigned int depth = 1)
 		{
-			this->doLaunch(stream, pipelineParams.data(), sizeof(Type), sbt, static_cast<unsigned int>(width), static_cast<unsigned int>(height), static_cast<unsigned int>(depth));
+			this->doLaunch(stream, pipelineParams.data(), sizeof(Type), sbt, width, height, depth);
 
 			return stream;
 		}
@@ -209,8 +232,8 @@ namespace PHOTON_NAMESPACE
 
 	private:
 
-		const SharedContext 	m_context;
+		SharedContext		m_context;
 
-		OptixPipeline			m_hPipeline;
+		OptixPipeline		m_hPipeline;
 	};
 }

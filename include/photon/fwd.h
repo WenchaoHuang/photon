@@ -55,5 +55,4 @@ namespace PHOTON_NAMESPACE
 	*****************************************************************************/
 
 	using SharedContext					= ns::SharedHandle<DeviceContext>;
-	using SharedPipeline				= ns::SharedHandle<Pipeline>;
 }
