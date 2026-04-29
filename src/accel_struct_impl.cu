@@ -247,7 +247,8 @@ void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator,
 		m_numSbtRecords  += buildInputs[i].numSbtRecords;
 		m_buildInputs[i]  = buildInputs[i];
 		m_buildInputs[i].flags         = m_geomFlags[i].data();
-		m_buildInputs[i].vertexBuffers  = &m_vertBuffers[i];
+		if (buildInputs[i].vertexBuffers)
+			m_buildInputs[i].vertexBuffers = &m_vertBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -307,7 +308,8 @@ void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 		m_numSbtRecords  += buildInputs[i].numSbtRecords;
 		m_buildInputs[i]  = buildInputs[i];
 		m_buildInputs[i].flags       = m_geomFlags[i].data();
-		m_buildInputs[i].aabbBuffers  = &m_aabbBuffers[i];
+		if (buildInputs[i].aabbBuffers)
+			m_buildInputs[i].aabbBuffers = &m_aabbBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -365,8 +367,10 @@ void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns
 		m_normalBuffers[i] = buildInputs[i].normalBuffers  ? buildInputs[i].normalBuffers[0]  : 0;
 
 		m_buildInputs[i]                  = buildInputs[i];
-		m_buildInputs[i].vertexBuffers     = &m_vertBuffers[i];
-		m_buildInputs[i].widthBuffers      = &m_widthBuffers[i];
+		if (buildInputs[i].vertexBuffers)
+			m_buildInputs[i].vertexBuffers = &m_vertBuffers[i];
+		if (buildInputs[i].widthBuffers)
+			m_buildInputs[i].widthBuffers  = &m_widthBuffers[i];
 		m_buildInputs[i].normalBuffers     = buildInputs[i].normalBuffers ? &m_normalBuffers[i] : nullptr;
 	}
 
@@ -433,8 +437,10 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 		m_numSbtRecords  += buildInputs[i].numSbtRecords;
 		m_buildInputs[i]  = buildInputs[i];
 		m_buildInputs[i].flags         = m_geomFlags[i].data();
-		m_buildInputs[i].vertexBuffers  = &m_vertBuffers[i];
-		m_buildInputs[i].radiusBuffers  = &m_radiusBuffers[i];
+		if (buildInputs[i].vertexBuffers)
+			m_buildInputs[i].vertexBuffers = &m_vertBuffers[i];
+		if (buildInputs[i].radiusBuffers)
+			m_buildInputs[i].radiusBuffers = &m_radiusBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
