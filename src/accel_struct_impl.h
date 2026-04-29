@@ -103,7 +103,7 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
 
 		virtual const std::vector<OptixBuildInputTriangleArray> & buildInputs() const override { return m_buildInputs; }
 
@@ -137,7 +137,7 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
 		
 		virtual const std::vector<OptixBuildInputCustomPrimitiveArray> & buildInputs() const override { return m_buildInputs; }
 
@@ -162,6 +162,7 @@ namespace PHOTON_NAMESPACE
 	*************************    AccelStructCurveImpl    *************************
 	*****************************************************************************/
 
+#if OPTIX_VERSION >= 70100
 	class AccelStructCurveImpl : public AccelStructCurve, public AccelStructBase
 	{
 
@@ -171,7 +172,7 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
 
 		virtual const std::vector<OptixBuildInputCurveArray> & buildInputs() const override { return m_buildInputs; }
 
@@ -190,12 +191,15 @@ namespace PHOTON_NAMESPACE
 		std::vector<OptixBuildInputCurveArray>	m_buildInputs;
 		std::vector<CUdeviceptr>				m_vertBuffers;
 		std::vector<CUdeviceptr>				m_widthBuffers;
+		std::vector<CUdeviceptr>				m_normalBuffers;
 	};
+#endif
 
 	/*****************************************************************************
 	************************    AccelStructSphereImpl    *************************
 	*****************************************************************************/
 
+#if OPTIX_VERSION >= 70500
 	class AccelStructSphereImpl : public AccelStructSphere, public AccelStructBase
 	{
 
@@ -205,7 +209,7 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) override;
 
 		virtual const std::vector<OptixBuildInputSphereArray> & buildInputs() const override { return m_buildInputs; }
 
@@ -226,6 +230,7 @@ namespace PHOTON_NAMESPACE
 		std::vector<CUdeviceptr>					m_radiusBuffers;
 		std::vector<std::vector<unsigned int>>		m_geomFlags;
 	};
+#endif
 
 	/*****************************************************************************
 	*************************    InstAccelStructImpl    **************************
@@ -242,7 +247,7 @@ namespace PHOTON_NAMESPACE
 
 		virtual const std::vector<OptixInstance> & buildInputs() const override { return m_hostInstances; }
 
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, bool preferFastTrace, bool allowUpdate) override;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate) override;
 
 		virtual void rebuild(ns::Stream & stream) override;
 
@@ -254,9 +259,7 @@ namespace PHOTON_NAMESPACE
 
 	private:
 
-		std::vector<OptixInstance>						m_hostInstances;
-		std::vector<std::shared_ptr<GeomAccelStruct>>	m_geomStructs;
-		ns::Array<ns::dev::Ptr<const Mat4x4>>			m_transforms;
-		ns::Array<OptixInstance>						m_instances;
+		std::vector<OptixInstance>		m_hostInstances;
+		ns::Array<OptixInstance>		m_instances;
 	};
 }

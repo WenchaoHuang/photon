@@ -222,7 +222,7 @@ AccelStructBase::~AccelStructBase()
 *************************    AccelStructTriangleImpl    **************************
 *********************************************************************************/
 
-void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_geomFlags.resize(buildInputs.size());
@@ -231,48 +231,23 @@ void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator,
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
-		const bool useInexBuffer = (buildInputs[i].indexBuffer != nullptr) && (buildInputs[i].numIndexTriplets > 0);
-
-		if (buildInputs[i].perSbtRecordFlags.empty())
+		//	Copy geometry flags to internal storage so the stored pointers remain valid.
+		if (buildInputs[i].flags && buildInputs[i].numSbtRecords > 0)
 		{
-			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
-		}
-		else if (buildInputs[i].perSbtRecordFlags.size() == buildInputs[i].numSbtRecords)
-		{
-			m_geomFlags[i].resize(buildInputs[i].perSbtRecordFlags.size());
-
-			std::memcpy(m_geomFlags[i].data(),buildInputs[i].perSbtRecordFlags.data(), sizeof(GeomFlags) * buildInputs[i].perSbtRecordFlags.size());
+			m_geomFlags[i].assign(buildInputs[i].flags, buildInputs[i].flags + buildInputs[i].numSbtRecords);
 		}
 		else
 		{
-			NS_ASSERT_LOG_IF(buildInputs[i].perSbtRecordFlags.size() != buildInputs[i].numSbtRecords, "Geometry flags does not match with numSbtRecords!");
-
-			return;
+			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
 		}
 
-		m_vertBuffers[i]													= (CUdeviceptr)buildInputs[i].vertexBuffer.data();
-		m_numSbtRecords														+= buildInputs[i].numSbtRecords;
-		m_buildInputs[i]													= OptixBuildInputTriangleArray{};
-		m_buildInputs[i].flags											= m_geomFlags[i].data();
-		m_buildInputs[i].vertexFormat									= OPTIX_VERTEX_FORMAT_FLOAT3;
-		m_buildInputs[i].vertexStrideInBytes							= sizeof(ns::float3_16a);
-		m_buildInputs[i].vertexBuffers									= &m_vertBuffers[i];
-		m_buildInputs[i].numVertices									= buildInputs[i].numVertices;
-		m_buildInputs[i].indexBuffer									= useInexBuffer ? (CUdeviceptr)buildInputs[i].indexBuffer.data() : NULL;
-		m_buildInputs[i].numIndexTriplets								= useInexBuffer ? buildInputs[i].numIndexTriplets : 0;
-		m_buildInputs[i].indexStrideInBytes								= useInexBuffer ? sizeof(ns::int3_16a) : 0;
-		m_buildInputs[i].preTransform									= NULL;
-		m_buildInputs[i].numSbtRecords									= buildInputs[i].numSbtRecords;
-		m_buildInputs[i].primitiveIndexOffset							= buildInputs[i].primitiveIndexOffset;
-		m_buildInputs[i].sbtIndexOffsetBuffer							= (CUdeviceptr)buildInputs[i].sbtIndexOffsetBuffer.data();
-		m_buildInputs[i].sbtIndexOffsetSizeInBytes						= sizeof(uint32_t);
-		m_buildInputs[i].sbtIndexOffsetStrideInBytes					= sizeof(uint32_t);
-	#if OPTIX_VERSION >= 70100
-		m_buildInputs[i].indexFormat									= useInexBuffer ? OPTIX_INDICES_FORMAT_UNSIGNED_INT3 : OPTIX_INDICES_FORMAT_NONE;
-		m_buildInputs[i].transformFormat								= OPTIX_TRANSFORM_FORMAT_NONE;
-	#else
-		m_buildInputs[i].indexFormat									= OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
-	#endif
+		//	Copy vertex buffer pointer to internal storage.
+		m_vertBuffers[i] = buildInputs[i].vertexBuffers ? buildInputs[i].vertexBuffers[0] : 0;
+
+		m_numSbtRecords  += buildInputs[i].numSbtRecords;
+		m_buildInputs[i]  = buildInputs[i];
+		m_buildInputs[i].flags         = m_geomFlags[i].data();
+		m_buildInputs[i].vertexBuffers  = &m_vertBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -307,7 +282,7 @@ std::vector<OptixBuildInput> AccelStructTriangleImpl::makeOptixBuildInputs() con
 ***************************    AccelStructAabbImpl    ****************************
 *********************************************************************************/
 
-void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_geomFlags.resize(buildInputs.size());
@@ -316,35 +291,23 @@ void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
-		if (buildInputs[i].perSbtRecordFlags.empty())
+		//	Copy geometry flags to internal storage so the stored pointers remain valid.
+		if (buildInputs[i].flags && buildInputs[i].numSbtRecords > 0)
 		{
-			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
-		}
-		else if (buildInputs[i].perSbtRecordFlags.size() == buildInputs[i].numSbtRecords)
-		{
-			m_geomFlags[i].resize(buildInputs[i].perSbtRecordFlags.size());
-
-			std::memcpy(m_geomFlags[i].data(),buildInputs[i].perSbtRecordFlags.data(), sizeof(GeomFlags) * buildInputs[i].perSbtRecordFlags.size());
+			m_geomFlags[i].assign(buildInputs[i].flags, buildInputs[i].flags + buildInputs[i].numSbtRecords);
 		}
 		else
 		{
-			NS_ASSERT_LOG_IF(buildInputs[i].perSbtRecordFlags.size() != buildInputs[i].numSbtRecords, "Geometry flags does not match with numSbtRecords!");
-
-			return;
+			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
 		}
 
-		m_aabbBuffers[i]																= (CUdeviceptr)buildInputs[i].aabbBuffer.data();
-		m_numSbtRecords																	+= buildInputs[i].numSbtRecords;
-		m_buildInputs[i]																= OptixBuildInputCustomPrimitiveArray{};
-		m_buildInputs[i].flags															= m_geomFlags[i].data();
-		m_buildInputs[i].aabbBuffers													= &m_aabbBuffers[i];
-		m_buildInputs[i].strideInBytes													= sizeof(Aabb);
-		m_buildInputs[i].numPrimitives													= buildInputs[i].numPrimitives;
-		m_buildInputs[i].numSbtRecords													= buildInputs[i].numSbtRecords;
-		m_buildInputs[i].primitiveIndexOffset											= buildInputs[i].primitiveIndexOffset;
-		m_buildInputs[i].sbtIndexOffsetBuffer											= (CUdeviceptr)buildInputs[i].sbtIndexOffsetBuffer.data();
-		m_buildInputs[i].sbtIndexOffsetSizeInBytes										= sizeof(uint32_t);
-		m_buildInputs[i].sbtIndexOffsetStrideInBytes									= sizeof(uint32_t);
+		//	Copy AABB buffer pointer to internal storage.
+		m_aabbBuffers[i] = buildInputs[i].aabbBuffers ? buildInputs[i].aabbBuffers[0] : 0;
+
+		m_numSbtRecords  += buildInputs[i].numSbtRecords;
+		m_buildInputs[i]  = buildInputs[i];
+		m_buildInputs[i].flags       = m_geomFlags[i].data();
+		m_buildInputs[i].aabbBuffers  = &m_aabbBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -384,37 +347,27 @@ std::vector<OptixBuildInput> AccelStructAabbImpl::makeOptixBuildInputs() const
 ***************************    AccelStructCurveImpl    ***************************
 *********************************************************************************/
 
-void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+#if OPTIX_VERSION >= 70100
+
+void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_buildInputs.resize(buildInputs.size());
 	m_vertBuffers.resize(buildInputs.size());
 	m_widthBuffers.resize(buildInputs.size());
+	m_normalBuffers.resize(buildInputs.size());
 	m_numSbtRecords = static_cast<uint32_t>(buildInputs.size());
 
 	for (size_t i = 0; i < buildInputs.size(); i++)
 	{
-		m_vertBuffers[i]										= (CUdeviceptr)buildInputs[i].vertexBuffer.data();
-		m_widthBuffers[i]										= (CUdeviceptr)buildInputs[i].widthBuffer.data();
+		//	Copy buffer pointers to internal storage so the stored pointers remain valid.
+		m_vertBuffers[i]   = buildInputs[i].vertexBuffers  ? buildInputs[i].vertexBuffers[0]  : 0;
+		m_widthBuffers[i]  = buildInputs[i].widthBuffers   ? buildInputs[i].widthBuffers[0]   : 0;
+		m_normalBuffers[i] = buildInputs[i].normalBuffers  ? buildInputs[i].normalBuffers[0]  : 0;
 
-		m_buildInputs[i]										= OptixBuildInputCurveArray{};
-	#if OPTIX_VERSION >= 70400
-		m_buildInputs[i].endcapFlags							= OPTIX_CURVE_ENDCAP_DEFAULT;
-	#endif
-	#if OPTIX_VERSION >= 70100
-		m_buildInputs[i].flag									= buildInputs[i].flags;
-		m_buildInputs[i].curveType								= static_cast<OptixPrimitiveType>(buildInputs[i].curveType);
-		m_buildInputs[i].numVertices							= buildInputs[i].numVertices;
-		m_buildInputs[i].numPrimitives							= buildInputs[i].numPrimitives;
-		m_buildInputs[i].primitiveIndexOffset					= buildInputs[i].primitiveIndexOffset;
-		m_buildInputs[i].vertexBuffers							= &m_vertBuffers[i];
-		m_buildInputs[i].vertexStrideInBytes					= sizeof(ns::float3_16a);
-		m_buildInputs[i].indexBuffer							= (CUdeviceptr)buildInputs[i].indexBuffer.data();
-		m_buildInputs[i].indexStrideInBytes						= sizeof(uint32_t);
-		m_buildInputs[i].widthBuffers							= &m_widthBuffers[i];
-		m_buildInputs[i].widthStrideInBytes						= sizeof(float);
-		m_buildInputs[i].normalBuffers							= nullptr;
-		m_buildInputs[i].normalStrideInBytes					= 0;
-	#endif
+		m_buildInputs[i]                  = buildInputs[i];
+		m_buildInputs[i].vertexBuffers     = &m_vertBuffers[i];
+		m_buildInputs[i].widthBuffers      = &m_widthBuffers[i];
+		m_buildInputs[i].normalBuffers     = buildInputs[i].normalBuffers ? &m_normalBuffers[i] : nullptr;
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -445,11 +398,15 @@ std::vector<OptixBuildInput> AccelStructCurveImpl::makeOptixBuildInputs() const
 	return result;
 }
 
+#endif	//	OPTIX_VERSION >= 70100
+
 /*********************************************************************************
 **************************    AccelStructSphereImpl    ***************************
 *********************************************************************************/
 
-void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+#if OPTIX_VERSION >= 70500
+
+void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_geomFlags.resize(buildInputs.size());
@@ -459,41 +416,25 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 
 	for (size_t i = 0; i < buildInputs.size(); i++)
 	{
-		if (buildInputs[i].perSbtRecordFlags.empty())
+		//	Copy geometry flags to internal storage so the stored pointers remain valid.
+		if (buildInputs[i].flags && buildInputs[i].numSbtRecords > 0)
 		{
-			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
-		}
-		else if (buildInputs[i].perSbtRecordFlags.size() == buildInputs[i].numSbtRecords)
-		{
-			m_geomFlags[i].resize(buildInputs[i].perSbtRecordFlags.size());
-
-			std::memcpy(m_geomFlags[i].data(),buildInputs[i].perSbtRecordFlags.data(), sizeof(GeomFlags) * buildInputs[i].perSbtRecordFlags.size());
+			m_geomFlags[i].assign(buildInputs[i].flags, buildInputs[i].flags + buildInputs[i].numSbtRecords);
 		}
 		else
 		{
-			NS_ASSERT_LOG_IF(buildInputs[i].perSbtRecordFlags.size() != buildInputs[i].numSbtRecords, "Geometry flags does not match with numSbtRecords!");
-
-			return;
+			m_geomFlags[i].assign(buildInputs[i].numSbtRecords, OPTIX_GEOMETRY_FLAG_NONE);
 		}
 
-		m_vertBuffers[i]											= (CUdeviceptr)buildInputs[i].vertexBuffer.data();
-		m_radiusBuffers[i]											= (CUdeviceptr)buildInputs[i].radiusBuffer.data();
-		m_numSbtRecords												+= buildInputs[i].numSbtRecords;
-	#if OPTIX_VERSION >= 70500
-		m_buildInputs[i]											= OptixBuildInputSphereArray{};
-		m_buildInputs[i].flags										= m_geomFlags[i].data();
-		m_buildInputs[i].numVertices								= buildInputs[i].numVertices;
-		m_buildInputs[i].vertexBuffers								= &m_vertBuffers[i];
-		m_buildInputs[i].vertexStrideInBytes						= sizeof(ns::float3_16a);
-		m_buildInputs[i].radiusBuffers								= &m_radiusBuffers[i];
-		m_buildInputs[i].radiusStrideInBytes						= sizeof(float);
-		m_buildInputs[i].singleRadius								= buildInputs[i].singleRadius;
-		m_buildInputs[i].numSbtRecords								= buildInputs[i].numSbtRecords;
-		m_buildInputs[i].primitiveIndexOffset						= buildInputs[i].primitiveIndexOffset;
-		m_buildInputs[i].sbtIndexOffsetBuffer						= (CUdeviceptr)buildInputs[i].sbtIndexOffsetBuffer.data();
-		m_buildInputs[i].sbtIndexOffsetSizeInBytes					= sizeof(uint32_t);
-		m_buildInputs[i].sbtIndexOffsetStrideInBytes				= sizeof(uint32_t);
-	#endif
+		//	Copy buffer pointers to internal storage.
+		m_vertBuffers[i]   = buildInputs[i].vertexBuffers  ? buildInputs[i].vertexBuffers[0]  : 0;
+		m_radiusBuffers[i] = buildInputs[i].radiusBuffers  ? buildInputs[i].radiusBuffers[0]  : 0;
+
+		m_numSbtRecords  += buildInputs[i].numSbtRecords;
+		m_buildInputs[i]  = buildInputs[i];
+		m_buildInputs[i].flags         = m_geomFlags[i].data();
+		m_buildInputs[i].vertexBuffers  = &m_vertBuffers[i];
+		m_buildInputs[i].radiusBuffers  = &m_radiusBuffers[i];
 	}
 
 	OptixAccelBuildOptions						buildOptions = {};
@@ -524,59 +465,23 @@ std::vector<OptixBuildInput> AccelStructSphereImpl::makeOptixBuildInputs() const
 	return result;
 }
 
+#endif	//	OPTIX_VERSION >= 70500
+
 /*********************************************************************************
 ***************************    InstAccelStructImpl    ****************************
 *********************************************************************************/
 
-namespace kernels
-{
-	__global__ void AssignInstanceTransforms(dev::Ptr<OptixInstance> pInstances, dev::Ptr<const dev::Ptr<const Mat4x4>> ppTransforms, unsigned int numInstances)
-	{
-		CUDA_for(i, numInstances);
-
-		Mat4x4 transform = {};
-		transform.rows[0] = ns::float4{ 1, 0, 0, 0 };
-		transform.rows[1] = ns::float4{ 0, 1, 0, 0 };
-		transform.rows[2] = ns::float4{ 0, 0, 1, 0 };
-		transform.rows[3] = ns::float4{ 0, 0, 0, 1 };
-
-		if (ppTransforms[i])
-		{
-			transform = *ppTransforms[i];
-		}
-
-		ns::float4 * pAddressBegin = reinterpret_cast<ns::float4*>(pInstances[i].transform);
-
-		pAddressBegin[0] = transform.rows[0];
-		pAddressBegin[1] = transform.rows[1];
-		pAddressBegin[2] = transform.rows[2];
-	}
-}
-
-void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, bool preferFastTrace, bool allowUpdate)
+void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate)
 {
 	m_hostInstances.resize(buildInputs.size());
-	m_geomStructs.resize(buildInputs.size());
 	m_instances.resize(allocator, buildInputs.size());
-	m_transforms.resize(allocator, buildInputs.size());
-
-	std::vector<ns::dev::Ptr<const Mat4x4>>		pTransforms(buildInputs.size());
 
 	for (size_t i = 0; i < buildInputs.size(); i++)
 	{
-		m_hostInstances[i]					= OptixInstance{};
-		m_hostInstances[i].traversableHandle	= buildInputs[i].geomAccelStruct->handle();
-		m_hostInstances[i].visibilityMask		= buildInputs[i].visibilityMask;
-		m_hostInstances[i].instanceId			= buildInputs[i].instanceId;
-		m_hostInstances[i].sbtOffset			= buildInputs[i].sbtOffset;
-		m_hostInstances[i].flags				= buildInputs[i].flags;
-		m_geomStructs[i]					= buildInputs[i].geomAccelStruct;
-		pTransforms[i]						= buildInputs[i].transform;
+		m_hostInstances[i] = buildInputs[i];
 	}
 
 	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
-	stream.memcpy(m_transforms.data(), pTransforms.data(), pTransforms.size());
-	stream.launch(kernels::AssignInstanceTransforms, ns::ceil_div(m_instances.size(), 128), 128)(m_instances, m_transforms, static_cast<uint32_t>(m_instances.size()));
 
 	OptixAccelBuildOptions								buildOptions = {};
 	buildOptions.operation								= OPTIX_BUILD_OPERATION_BUILD;
@@ -595,7 +500,7 @@ void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 
 void InstAccelStructImpl::rebuild(ns::Stream & stream)
 {
-	stream.launch(kernels::AssignInstanceTransforms, ns::ceil_div(m_instances.size(), 128), 128)(m_instances, m_transforms, static_cast<uint32_t>(m_instances.size()));
+	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
 
 	AccelStructBase::rebuild(stream);
 }
@@ -603,7 +508,7 @@ void InstAccelStructImpl::rebuild(ns::Stream & stream)
 
 void InstAccelStructImpl::refit(ns::Stream & stream)
 {
-	stream.launch(kernels::AssignInstanceTransforms, ns::ceil_div(m_instances.size(), 128), 128)(m_instances, m_transforms, static_cast<uint32_t>(m_instances.size()));
+	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
 
 	AccelStructBase::refit(stream);
 }
