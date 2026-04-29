@@ -27,6 +27,12 @@
 #include <nucleus/device_pointer.h>
 #include <optix.h>
 
+//	Backward compatibility: OptixBuildInputAabbArray was renamed to
+//	OptixBuildInputCustomPrimitiveArray in OptiX 7.1.
+#if OPTIX_VERSION < 70100
+typedef OptixBuildInputAabbArray OptixBuildInputCustomPrimitiveArray;
+#endif
+
 namespace PHOTON_NAMESPACE
 {
 	/*****************************************************************************
@@ -172,8 +178,8 @@ namespace PHOTON_NAMESPACE
 			unsigned int						numVertices = 0;					//!	Number of vertices in each of buffer in vertexBuffer.
 		};
 
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputTriangleArray structures.
+		virtual const std::vector<OptixBuildInputTriangleArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a triangle primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Triangle; }
@@ -202,8 +208,8 @@ namespace PHOTON_NAMESPACE
 			unsigned int					numPrimitives = 0;					//!	Number of primitives.
 		};
 
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputCustomPrimitiveArray structures.
+		virtual const std::vector<OptixBuildInputCustomPrimitiveArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a AABB primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::AABB; }
@@ -252,8 +258,8 @@ namespace PHOTON_NAMESPACE
 			GeomFlags							flags = None;					//!	Combination of GeomFlags describing the primitive behavior.
 		};
 
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputCurveArray structures.
+		virtual const std::vector<OptixBuildInputCurveArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a curve primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Curve; }
@@ -287,8 +293,8 @@ namespace PHOTON_NAMESPACE
 			bool								singleRadius = false;				//!	Boolean value indicating whether a single radius per radius buffer is used, or the number of radii in radiusBuffers equals numVertices.
 		};
 
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputSphereArray structures.
+		virtual const std::vector<OptixBuildInputSphereArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a sphere primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Sphere; }
@@ -331,8 +337,8 @@ namespace PHOTON_NAMESPACE
 			InstFlags							flags = None;					//	Any combination of OptixInstanceFlags is allowed.
 		};
 
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixInstance structures.
+		virtual const std::vector<OptixInstance> & buildInputs() const = 0;
 
 		//	Function to retrieve the subtype of the acceleration structure, indicating it as a instance type.
 		virtual SubType subType() const final { return SubType::Instance; }
