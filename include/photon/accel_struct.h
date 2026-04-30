@@ -223,7 +223,11 @@ namespace PHOTON_NAMESPACE
 		};
 
 		//	Returns a constant reference to a vector of OptixBuildInputCurveArray structures.
+	#if OPTIX_VERSION >= 70100
 		virtual const std::vector<OptixBuildInputCurveArray> & buildInputs() const = 0;
+	#else
+	#error "AccelStructCurve requires OptiX 7.1 or newer because OptixBuildInputCurveArray is unavailable before OPTIX_VERSION 70100."
+	#endif
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a curve primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Curve; }
