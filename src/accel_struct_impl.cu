@@ -144,11 +144,11 @@ void AccelStructBase::rebuild(ns::Stream & stream)
 
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
-		const auto buildInputs = this->makeOptixBuildInputs();
+		this->makeOptixBuildInputs(m_cachedBuildInputs);
 
 		if (this->allowCompaction())
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(), m_outputBuffer.bytes(), &outputHandle, nullptr, 0);
 
 			if (err == OPTIX_SUCCESS)
@@ -159,7 +159,7 @@ void AccelStructBase::rebuild(ns::Stream & stream)
 		}
 		else
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
 								  m_outputBuffer.bytes() - m_headerSize, &outputHandle, nullptr, 0);
 
@@ -184,17 +184,17 @@ void AccelStructBase::refit(ns::Stream & stream)
 	{
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_UPDATE;
 
-		const auto buildInputs = this->makeOptixBuildInputs();
+		this->makeOptixBuildInputs(m_cachedBuildInputs);
 
 		if (this->allowCompaction())
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
 								  m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 		}
 		else
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
 								  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 		}
@@ -262,21 +262,20 @@ void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator,
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	AccelStructBase::build(stream, allocator, makeOptixBuildInputs(), buildOptions, headerSize);
+	makeOptixBuildInputs(m_cachedBuildInputs);
+	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-std::vector<OptixBuildInput> AccelStructTriangleImpl::makeOptixBuildInputs() const
+void AccelStructTriangleImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
-	std::vector<OptixBuildInput> result(m_buildInputs.size());
+	out.resize(m_buildInputs.size());
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
-		result[i].type				= OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
-		result[i].triangleArray		= m_buildInputs[i];
+		out[i].type				= OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+		out[i].triangleArray	= m_buildInputs[i];
 	}
-
-	return result;
 }
 
 /*********************************************************************************
@@ -323,26 +322,25 @@ void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	AccelStructBase::build(stream, allocator, makeOptixBuildInputs(), buildOptions, headerSize);
+	makeOptixBuildInputs(m_cachedBuildInputs);
+	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-std::vector<OptixBuildInput> AccelStructAabbImpl::makeOptixBuildInputs() const
+void AccelStructAabbImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
-	std::vector<OptixBuildInput> result(m_buildInputs.size());
+	out.resize(m_buildInputs.size());
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
 	#if OPTIX_VERSION >= 70100
-		result[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-		result[i].customPrimitiveArray		= m_buildInputs[i];
+		out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+		out[i].customPrimitiveArray		= m_buildInputs[i];
 	#else
-		result[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-		result[i].aabbArray					= m_buildInputs[i];
+		out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+		out[i].aabbArray				= m_buildInputs[i];
 	#endif
 	}
-
-	return result;
 }
 
 /*********************************************************************************
@@ -385,21 +383,20 @@ void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	AccelStructBase::build(stream, allocator, makeOptixBuildInputs(), buildOptions, headerSize);
+	makeOptixBuildInputs(m_cachedBuildInputs);
+	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-std::vector<OptixBuildInput> AccelStructCurveImpl::makeOptixBuildInputs() const
+void AccelStructCurveImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
-	std::vector<OptixBuildInput> result(m_buildInputs.size());
+	out.resize(m_buildInputs.size());
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
-		result[i].type			= OPTIX_BUILD_INPUT_TYPE_CURVES;
-		result[i].curveArray	= m_buildInputs[i];
+		out[i].type			= OPTIX_BUILD_INPUT_TYPE_CURVES;
+		out[i].curveArray	= m_buildInputs[i];
 	}
-
-	return result;
 }
 
 #endif	//	OPTIX_VERSION >= 70100
@@ -454,21 +451,20 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	AccelStructBase::build(stream, allocator, makeOptixBuildInputs(), buildOptions, headerSize);
+	makeOptixBuildInputs(m_cachedBuildInputs);
+	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-std::vector<OptixBuildInput> AccelStructSphereImpl::makeOptixBuildInputs() const
+void AccelStructSphereImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
-	std::vector<OptixBuildInput> result(m_buildInputs.size());
+	out.resize(m_buildInputs.size());
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
-		result[i].type				= OPTIX_BUILD_INPUT_TYPE_SPHERES;
-		result[i].sphereArray		= m_buildInputs[i];
+		out[i].type				= OPTIX_BUILD_INPUT_TYPE_SPHERES;
+		out[i].sphereArray		= m_buildInputs[i];
 	}
-
-	return result;
 }
 
 #endif	//	OPTIX_VERSION >= 70500
@@ -500,7 +496,8 @@ void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 	buildOptions.motionOptions.timeEnd					= 0.0f;
 	buildOptions.motionOptions.flags					= OPTIX_MOTION_FLAG_NONE;
 
-	AccelStructBase::build(stream, allocator, makeOptixBuildInputs(), buildOptions, 0);
+	makeOptixBuildInputs(m_cachedBuildInputs);
+	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
 }
 
 
@@ -520,15 +517,15 @@ void InstAccelStructImpl::refit(ns::Stream & stream)
 }
 
 
-std::vector<OptixBuildInput> InstAccelStructImpl::makeOptixBuildInputs() const
+void InstAccelStructImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
-	OptixBuildInput		optixBuildInput					= {};
-	optixBuildInput.type								= OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-	optixBuildInput.instanceArray.instances				= (CUdeviceptr)m_instances.data();
-#if OPTIX_VERSION >= 70600
-	optixBuildInput.instanceArray.instanceStride		= sizeof(OptixInstance);
-#endif
-	optixBuildInput.instanceArray.numInstances			= static_cast<uint32_t>(m_instances.size());
+	out.resize(1);
 
-	return { optixBuildInput };
+	out[0]												= {};
+	out[0].type											= OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+	out[0].instanceArray.instances						= (CUdeviceptr)m_instances.data();
+#if OPTIX_VERSION >= 70600
+	out[0].instanceArray.instanceStride					= sizeof(OptixInstance);
+#endif
+	out[0].instanceArray.numInstances					= static_cast<uint32_t>(m_instances.size());
 }
