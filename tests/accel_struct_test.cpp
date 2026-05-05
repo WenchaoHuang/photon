@@ -85,21 +85,21 @@ void accel_struct_test()
 	assert(aabbBuildInput.strideInBytes == sizeof(pt::Aabb));
 	assert(instanceBuildInput.visibilityMask == pt::BuildInputInstance::FullVisibilityMask);
 
-	auto instAccelStrut = deviceContext->createInstAccelStruct();
-	auto accelStrutAabb = deviceContext->createAccelStructAabb();
-	auto accelStrutTriangle = deviceContext->createAccelStructTriangle();
+	auto instAccelStruct = deviceContext->createInstAccelStruct();
+	auto accelStructAabb = deviceContext->createAccelStructAabb();
+	auto accelStructTriangle = deviceContext->createAccelStructTriangle();
 
-	assert(instAccelStrut != nullptr);
-	assert(accelStrutAabb != nullptr);
-	assert(accelStrutTriangle != nullptr);
+	assert(instAccelStruct != nullptr);
+	assert(accelStructAabb != nullptr);
+	assert(accelStructTriangle != nullptr);
 #if OPTIX_VERSION >= 70100
-	auto accelStrutCurve = deviceContext->createAccelStructCurve();
-	assert(accelStrutCurve != nullptr);
+	auto accelStructCurve = deviceContext->createAccelStructCurve();
+	assert(accelStructCurve != nullptr);
 #endif
 #if OPTIX_VERSION >= 70500
-	auto accelStrutSphere = deviceContext->createAccelStructSphere();
-	assert(accelStrutSphere != nullptr);
+	auto accelStructSphere = deviceContext->createAccelStructSphere();
+	assert(accelStructSphere != nullptr);
 #endif
 
-	accelStrutAabb->refit(stream);
+	accelStructAabb->refit(stream);
 }

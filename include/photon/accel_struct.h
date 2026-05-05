@@ -640,8 +640,7 @@ namespace PHOTON_NAMESPACE
 
 		BuildInputInstance & setTransform(const float * value)
 		{
-			for (size_t i = 0; i < std::size(transform); ++i)
-				transform[i] = value[i];
+			std::memcpy(transform, value, sizeof(transform));
 			return *this;
 		}
 
