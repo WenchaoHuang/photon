@@ -629,13 +629,13 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		static constexpr unsigned int FullVisibilityMask = 255u;
+		static constexpr unsigned int DefaultVisibilityMask = 255u;
 
 		BuildInputInstance()
 		{
 			static_cast<OptixInstance &>(*this) = {};
 			this->setIdentityTransform();
-			visibilityMask = FullVisibilityMask;
+			visibilityMask = DefaultVisibilityMask;
 		}
 
 		BuildInputInstance & setTransform(const float * value)

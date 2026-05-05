@@ -77,13 +77,17 @@ void accel_struct_test()
 	pt::BuildInputInstance instanceBuildInput;
 	instanceBuildInput.setInstanceId(1)
 					  .setSbtOffset(2)
-					  .setVisibilityMask(pt::BuildInputInstance::FullVisibilityMask)
+					  .setVisibilityMask(pt::BuildInputInstance::DefaultVisibilityMask)
 					  .setFlags(0)
 					  .setTraversableHandle(0);
 	assert(triangleBuildInput.vertexFormat == OPTIX_VERTEX_FORMAT_FLOAT3);
 	assert(triangleBuildInput.indexFormat == OPTIX_INDICES_FORMAT_UNSIGNED_INT3);
+	assert(triangleBuildInput.indexStrideInBytes == sizeof(triIndices[0]));
 	assert(aabbBuildInput.strideInBytes == sizeof(pt::Aabb));
-	assert(instanceBuildInput.visibilityMask == pt::BuildInputInstance::FullVisibilityMask);
+#if OPTIX_VERSION >= 70100
+	assert(curveBuildInput.indexStrideInBytes == sizeof(curveIndices[0]));
+#endif
+	assert(instanceBuildInput.visibilityMask == pt::BuildInputInstance::DefaultVisibilityMask);
 
 	auto instAccelStruct = deviceContext->createInstAccelStruct();
 	auto accelStructAabb = deviceContext->createAccelStructAabb();
