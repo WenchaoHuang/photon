@@ -45,6 +45,11 @@ namespace PHOTON_NAMESPACE
 	class AccelStructCurve;
 	class AccelStructSphere;
 	class AccelStructTriangle;
+	class BuildInputAabb;
+	class BuildInputCurves;
+	class BuildInputInstance;
+	class BuildInputSphere;
+	class BuildInputTriangles;
 
 	struct NS_ALIGN(16) Color4f { float r, g, b, a; };
 	struct NS_ALIGN(16) Mat4x4 { ns::float4 rows[4]; };
