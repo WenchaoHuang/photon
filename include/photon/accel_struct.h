@@ -291,13 +291,45 @@ namespace PHOTON_NAMESPACE
 		#endif
 		};
 
-		//	Returns a constant reference to a vector of OptixInstance structures.
+		/**
+		 *	Returns a constant reference to a vector of OptixInstance structures.
+		 *
+		 *	Each OptixInstance stored here is expected to be fully initialized for OptiX.
+		 *	At minimum, callers should ensure:
+		 *	- traversableHandle references a valid child GAS/IAS,
+		 *	- transform contains a valid row-major 3x4 affine transform,
+		 *	- instanceId, visibilityMask, sbtOffset, and flags are explicitly set.
+		 *
+		 *	When no instance transform is desired, use the identity transform:
+		 *	{ 1, 0, 0, 0,
+		 *	  0, 1, 0, 0,
+		 *	  0, 0, 1, 0 }.
+		 *
+		 *	Do not rely on zero-initialization for transform, as an all-zero matrix is not
+		 *	a valid default "no transform" affine transform.
+		 */
 		virtual const std::vector<OptixInstance> & buildInputs() const = 0;
 
 		//	Function to retrieve the subtype of the acceleration structure, indicating it as a instance type.
 		virtual SubType subType() const final { return SubType::Instance; }
 
-		//	Abstract function to build the acceleration structure from input instances.
+		/**
+		 *	Abstract function to build the acceleration structure from input instances.
+		 *
+		 *	The supplied OptixInstance values are passed through directly and must already
+		 *	satisfy OptiX requirements. In particular:
+		 *	- traversableHandle must be valid,
+		 *	- transform must be a valid row-major 3x4 affine transform array,
+		 *	  typically identity if no transform is intended,
+		 *	- visibilityMask should be set intentionally (commonly 255 for full visibility),
+		 *	- sbtOffset should be set to the intended SBT record offset (commonly 0 when
+		 *	  no per-instance offset is needed),
+		 *	- flags should be set to the intended OptixInstanceFlags value(s), or 0 when
+		 *	  no special instance flags are required.
+		 *
+		 *	Passing zero-initialized OptixInstance values is unsafe because the transform
+		 *	field would not describe a valid identity transform.
+		 */
 		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate) = 0;
 	};
 }
