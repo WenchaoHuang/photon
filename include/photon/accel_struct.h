@@ -27,6 +27,12 @@
 #include <nucleus/device_pointer.h>
 #include <optix.h>
 
+//	Backward compatibility: OptixBuildInputAabbArray was renamed to
+//	OptixBuildInputCustomPrimitiveArray in OptiX 7.1.
+#if OPTIX_VERSION < 70100
+	typedef OptixBuildInputAabbArray	OptixBuildInputCustomPrimitiveArray;
+#endif
+
 namespace PHOTON_NAMESPACE
 {
 	/*****************************************************************************
@@ -159,27 +165,21 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Build input for GAS with triangle primitive type.
-		struct BuildInput
-		{
-			dev::Ptr<const ns::int3_16a>		indexBuffer = nullptr;				//!	Optional pointer to array of int triplets, one triplet per triangle.
-			dev::Ptr<const ns::float3_16a>		vertexBuffer = nullptr;				//!	Pointer to array of positons on device memory. 
-			dev::Ptr<const uint32_t>			sbtIndexOffsetBuffer = nullptr;		//!	Device pointer to per-primitive local sbt index offset buffer. May be nullptr.
-			ns::ArrayProxy<GeomFlags>			perSbtRecordFlags = nullptr;		//!	Array of flags, size must match numSbtRecords. Passing nullptr will fill with `GeomFlags::eNone`.
-			unsigned int						primitiveIndexOffset = 0;			//!	Primitive index bias, applied in `optixGetPrimitiveIndex()`.
-			unsigned int						numIndexTriplets = 0;				//!	Size of array in indexBuffer. If zeros, numIndexTriplets = numVertices / 3.
-			unsigned int						numSbtRecords = 1;					//!	Number of sbt records available to the sbt index offset override.
-			unsigned int						numVertices = 0;					//!	Number of vertices in each of buffer in vertexBuffer.
-		};
-
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputTriangleArray structures.
+		virtual const std::vector<OptixBuildInputTriangleArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a triangle primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Triangle; }
 
 		//	Abstract function to build the acceleration structure from input triangles.
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
+		//	Callers should zero-initialize each OptixBuildInputTriangleArray first
+		//	(e.g. OptixBuildInputTriangleArray{}), then populate all required OptiX
+		//	fields before calling build(). In particular, initialize the vertex data
+		//	(description pointers/count, vertexFormat, and vertexStrideInBytes) and,
+		//	when indexed triangles are used, the index data (index buffer/count,
+		//	indexFormat, and indexStrideInBytes). Also provide per-input flags /
+		//	numSbtRecords as required by the OptiX build input contract.
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
 	};
 
 	/*****************************************************************************
@@ -191,31 +191,21 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Build input for GAS with aabb primitive type.
-		struct BuildInput
-		{
-			dev::Ptr<const Aabb>			aabbBuffer = nullptr;				//!	Pointer to AABBs on device memory.
-			dev::Ptr<const uint32_t>		sbtIndexOffsetBuffer = nullptr;		//!	Device pointer to per-primitive local sbt index offset buffer. May be nullptr.
-			ns::ArrayProxy<GeomFlags>		perSbtRecordFlags = nullptr;		//!	Array of flags, size must match numSbtRecords. Passing nullptr will fill with GeomFlags::eNone.
-			unsigned int					primitiveIndexOffset = 0;			//!	Primitive index bias, applied in `optixGetPrimitiveIndex()`.	
-			unsigned int					numSbtRecords = 1;					//!	Number of sbt records available to the sbt index offset override.
-			unsigned int					numPrimitives = 0;					//!	Number of primitives.
-		};
-
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputCustomPrimitiveArray structures.
+		virtual const std::vector<OptixBuildInputCustomPrimitiveArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a AABB primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::AABB; }
 
 		//	Abstract function to build the acceleration structure from input AABBs.
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
 	};
 
 	/*****************************************************************************
 	***************************    AccelStructCurve    ***************************
 	*****************************************************************************/
 
+#if OPTIX_VERSION >= 70100
 	/**
 	 *	@note		Requires Optix version >= 7.1.0
 	 */
@@ -239,33 +229,26 @@ namespace PHOTON_NAMESPACE
 		#endif
 		};
 
-		//	Build input for GAS with curve primitive type.
-		struct BuildInput
-		{
-			CurveType							curveType = RoundLinear;			
-			dev::Ptr<const ns::float3_16a>		vertexBuffer = nullptr;			//!	Pointer to array of positons on device memory.
-			dev::Ptr<const uint32_t>			indexBuffer = nullptr;			//!	These define a single segment. Size of array is numPrimitives.
-			dev::Ptr<const float>				widthBuffer = nullptr;			//!	Specifying the curve width (radius) corresponding to each vertex.
-			unsigned int						primitiveIndexOffset = 0;		//!	Primitive index bias, applied in `optixGetPrimitiveIndex()`.
-			unsigned int						numPrimitives = 0;				//!	Number of primitives.
-			unsigned int						numVertices = 0;				//!	Number of vertices in each buffer in vertexBuffers.
-			GeomFlags							flags = None;					//!	Combination of GeomFlags describing the primitive behavior.
-		};
-
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputCurveArray structures.
+	#if OPTIX_VERSION >= 70100
+		virtual const std::vector<OptixBuildInputCurveArray> & buildInputs() const = 0;
+	#else
+		#error "AccelStructCurve requires OptiX 7.1 or newer because OptixBuildInputCurveArray is unavailable before OPTIX_VERSION 70100."
+	#endif
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a curve primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Curve; }
 
 		//	Abstract function to build the acceleration structure from input curves.
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
 	};
+#endif
 
 	/*****************************************************************************
 	**************************    AccelStructSphere    ***************************
 	*****************************************************************************/
 
+#if OPTIX_VERSION >= 70500
 	/**
 	 *	@note		Requires Optix version >= 7.5.0
 	 */
@@ -274,28 +257,16 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Build input for GAS with sphere primitive type.
-		struct BuildInput
-		{
-			dev::Ptr<const float>				radiusBuffer = nullptr;				//!	Parallel to vertexBuffer: specifying the sphere radius corresponding to each vertex.
-			dev::Ptr<const ns::float3_16a>		vertexBuffer = nullptr;				//!	Pointer to array of positons on device memory.
-			dev::Ptr<const uint32_t>			sbtIndexOffsetBuffer = nullptr;		//!	Device pointer to per-primitive local sbt index offset buffer. May be nullptr.
-			ns::ArrayProxy<GeomFlags>			perSbtRecordFlags = nullptr;		//!	Array of flags, size must match numSbtRecords. Passing nullptr will fill with GeomFlags::eNone.
-			unsigned int						primitiveIndexOffset = 0;			//!	Primitive index bias, applied in `optixGetPrimitiveIndex()`.
-			unsigned int						numSbtRecords = 1;					//!	Number of sbt records available to the sbt index offset override.
-			unsigned int						numVertices = 0;					//!	Number of vertices in each buffer in vertexBuffers.
-			bool								singleRadius = false;				//!	Boolean value indicating whether a single radius per radius buffer is used, or the number of radii in radiusBuffers equals numVertices.
-		};
-
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		//	Returns a constant reference to a vector of OptixBuildInputSphereArray structures.
+		virtual const std::vector<OptixBuildInputSphereArray> & buildInputs() const = 0;
 
 		//	Function to retrieve the primitive type of the acceleration structure, indicating it as a sphere primitive.
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Sphere; }
 
 		//	Abstract function to build the acceleration structure from input spheres.
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
 	};
+#endif
 
 	/*****************************************************************************
 	***************************    InstAccelStruct    ****************************
@@ -320,24 +291,45 @@ namespace PHOTON_NAMESPACE
 		#endif
 		};
 
-		//	Build input for IAS.
-		struct BuildInput
-		{
-			std::shared_ptr<GeomAccelStruct>	geomAccelStruct = nullptr;		//	Set with an OptixTraversableHandle.
-			dev::Ptr<const Mat4x4>				transform = nullptr;			//	Pointer to the affine object-to-world transformation matrix in row-major layout.
-			unsigned int						visibilityMask = 255;			//	Visibility mask. If rayMask & instanceMask == 0 the instance is culled.
-			unsigned int						instanceId = 0;					//	Application supplied ID. The maximal ID can be queried using OPTIX_DEVICE_PROPERTY_LIMIT_MAX_INSTANCE_ID.
-			unsigned int						sbtOffset = 0;					//	SBT record offset. In a traversable graph with multiple levels of IAS objects, offsets are summed together.
-			InstFlags							flags = None;					//	Any combination of OptixInstanceFlags is allowed.
-		};
-
-		//	Returns a constant reference to a vector of BuildInput structures,  
-		virtual const std::vector<BuildInput> & buildInputs() const = 0;
+		/**
+		 *	Returns a constant reference to a vector of OptixInstance structures.
+		 *
+		 *	Each OptixInstance stored here is expected to be fully initialized for OptiX.
+		 *	At minimum, callers should ensure:
+		 *	- traversableHandle references a valid child GAS/IAS,
+		 *	- transform contains a valid row-major 3x4 affine transform,
+		 *	- instanceId, visibilityMask, sbtOffset, and flags are explicitly set.
+		 *
+		 *	When no instance transform is desired, use the identity transform:
+		 *	{ 1, 0, 0, 0,
+		 *	  0, 1, 0, 0,
+		 *	  0, 0, 1, 0 }.
+		 *
+		 *	Do not rely on zero-initialization for transform, as an all-zero matrix is not
+		 *	a valid default "no transform" affine transform.
+		 */
+		virtual const std::vector<OptixInstance> & buildInputs() const = 0;
 
 		//	Function to retrieve the subtype of the acceleration structure, indicating it as a instance type.
 		virtual SubType subType() const final { return SubType::Instance; }
 
-		//	Abstract function to build the acceleration structure from input instances.
-		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<BuildInput> buildInputs, bool preferFastTrace, bool allowUpdate) = 0;
+		/**
+		 *	Abstract function to build the acceleration structure from input instances.
+		 *
+		 *	The supplied OptixInstance values are passed through directly and must already
+		 *	satisfy OptiX requirements. In particular:
+		 *	- traversableHandle must be valid,
+		 *	- transform must be a valid row-major 3x4 affine transform array,
+		 *	  typically identity if no transform is intended,
+		 *	- visibilityMask should be set intentionally (commonly 255 for full visibility),
+		 *	- sbtOffset should be set to the intended SBT record offset (commonly 0 when
+		 *	  no per-instance offset is needed),
+		 *	- flags should be set to the intended OptixInstanceFlags value(s), or 0 when
+		 *	  no special instance flags are required.
+		 *
+		 *	Passing zero-initialized OptixInstance values is unsafe because the transform
+		 *	field would not describe a valid identity transform.
+		 */
+		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate) = 0;
 	};
 }
