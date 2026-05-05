@@ -172,6 +172,13 @@ namespace PHOTON_NAMESPACE
 		virtual PrimitiveType primitiveType() const final { return PrimitiveType::Triangle; }
 
 		//	Abstract function to build the acceleration structure from input triangles.
+		//	Callers should zero-initialize each OptixBuildInputTriangleArray first
+		//	(e.g. OptixBuildInputTriangleArray{}), then populate all required OptiX
+		//	fields before calling build(). In particular, initialize the vertex data
+		//	(description pointers/count, vertexFormat, and vertexStrideInBytes) and,
+		//	when indexed triangles are used, the index data (index buffer/count,
+		//	indexFormat, and indexStrideInBytes). Also provide per-input flags /
+		//	numSbtRecords as required by the OptiX build input contract.
 		virtual void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate) = 0;
 	};
 
