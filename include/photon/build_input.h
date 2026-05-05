@@ -195,18 +195,6 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 
-		BuildInputTriangles & setVertexFormat(OptixVertexFormat value)
-		{
-			vertexFormat = value;
-			return *this;
-		}
-
-		BuildInputTriangles & setVertexStrideInBytes(unsigned int value)
-		{
-			vertexStrideInBytes = value;
-			return *this;
-		}
-
 		BuildInputTriangles & setIndexBuffer(CUdeviceptr value)
 		{
 			indexBuffer = value;
@@ -225,18 +213,6 @@ namespace PHOTON_NAMESPACE
 		BuildInputTriangles & setNumIndexTriplets(unsigned int value)
 		{
 			numIndexTriplets = value;
-			return *this;
-		}
-
-		BuildInputTriangles & setIndexFormat(OptixIndicesFormat value)
-		{
-			indexFormat = value;
-			return *this;
-		}
-
-		BuildInputTriangles & setIndexStrideInBytes(unsigned int value)
-		{
-			indexStrideInBytes = value;
 			return *this;
 		}
 
@@ -329,12 +305,6 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 
-		BuildInputAabb & setStrideInBytes(unsigned int value)
-		{
-			strideInBytes = value;
-			return *this;
-		}
-
 		BuildInputAabb & setFlags(const unsigned int * value)
 		{
 			flags = value;
@@ -424,12 +394,6 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 
-		BuildInputCurves & setVertexStrideInBytes(unsigned int value)
-		{
-			vertexStrideInBytes = value;
-			return *this;
-		}
-
 		BuildInputCurves & setWidthBuffers(const CUdeviceptr * buffers)
 		{
 			widthBuffers = buffers;
@@ -441,12 +405,6 @@ namespace PHOTON_NAMESPACE
 		{
 			widthBuffers = buffers;
 			widthStrideInBytes = sizeof(Width);
-			return *this;
-		}
-
-		BuildInputCurves & setWidthStrideInBytes(unsigned int value)
-		{
-			widthStrideInBytes = value;
 			return *this;
 		}
 
@@ -464,12 +422,6 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 
-		BuildInputCurves & setNormalStrideInBytes(unsigned int value)
-		{
-			normalStrideInBytes = value;
-			return *this;
-		}
-
 		BuildInputCurves & setIndexBuffer(CUdeviceptr value)
 		{
 			indexBuffer = value;
@@ -482,12 +434,6 @@ namespace PHOTON_NAMESPACE
 			static_assert(std::is_unsigned_v<detail::RemoveCVRef<Index>>, "Curve index buffer must use an unsigned integer type.");
 			indexBuffer = reinterpret_cast<CUdeviceptr>(buffer);
 			indexStrideInBytes = sizeof(Index);
-			return *this;
-		}
-
-		BuildInputCurves & setIndexStrideInBytes(unsigned int value)
-		{
-			indexStrideInBytes = value;
 			return *this;
 		}
 
@@ -536,12 +482,6 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 
-		BuildInputSphere & setVertexStrideInBytes(unsigned int value)
-		{
-			vertexStrideInBytes = value;
-			return *this;
-		}
-
 		BuildInputSphere & setNumVertices(unsigned int value)
 		{
 			numVertices = value;
@@ -559,12 +499,6 @@ namespace PHOTON_NAMESPACE
 		{
 			radiusBuffers = buffers;
 			radiusStrideInBytes = sizeof(Radius);
-			return *this;
-		}
-
-		BuildInputSphere & setRadiusStrideInBytes(unsigned int value)
-		{
-			radiusStrideInBytes = value;
 			return *this;
 		}
 
