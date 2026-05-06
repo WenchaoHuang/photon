@@ -342,7 +342,7 @@ void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns
 }
 
 
-void AccelStructCurveImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void AccelStructCurveImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -389,7 +389,7 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 }
 
 
-void AccelStructSphereImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void AccelStructSphereImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -451,7 +451,7 @@ void InstAccelStructImpl::refit(ns::Stream & stream)
 }
 
 
-void InstAccelStructImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void InstAccelStructImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
 {
 	out.resize(1);
 

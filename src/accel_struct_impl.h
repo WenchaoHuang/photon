@@ -79,7 +79,7 @@ namespace PHOTON_NAMESPACE
 		unsigned int								m_numSbtRecords;
 		mutable std::vector<OptixBuildInput>		m_cachedBuildInputs;
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const = 0;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const = 0;
 
 	private:
 
@@ -116,7 +116,7 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const override;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
 
 	private:
 
@@ -148,7 +148,7 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const override;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
 
 	private:
 
@@ -181,7 +181,7 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const override;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
 
 	private:
 
@@ -215,7 +215,7 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const override;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
 
 	private:
 
@@ -246,7 +246,7 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const override;
+		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
 
 	private:
 
