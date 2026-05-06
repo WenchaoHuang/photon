@@ -164,6 +164,10 @@ namespace PHOTON_NAMESPACE
 		}
 	}
 
+	/*****************************************************************************
+	*************************    BuildInputTriangles    **************************
+	*****************************************************************************/
+
 	class BuildInputTriangles : public OptixBuildInputTriangleArray
 	{
 
@@ -275,6 +279,10 @@ namespace PHOTON_NAMESPACE
 		}
 	};
 
+	/*****************************************************************************
+	****************************    BuildInputAabb    ****************************
+	*****************************************************************************/
+
 	class BuildInputAabb : public OptixBuildInputCustomPrimitiveArray
 	{
 
@@ -352,6 +360,10 @@ namespace PHOTON_NAMESPACE
 	};
 
 #if OPTIX_VERSION >= 70100
+	/*****************************************************************************
+	***************************    BuildInputCurves    ***************************
+	*****************************************************************************/
+
 	class BuildInputCurves : public OptixBuildInputCurveArray
 	{
 
@@ -458,6 +470,10 @@ namespace PHOTON_NAMESPACE
 #endif
 
 #if OPTIX_VERSION >= 70500
+	/*****************************************************************************
+	***************************    BuildInputSphere    ***************************
+	*****************************************************************************/
+
 	class BuildInputSphere : public OptixBuildInputSphereArray
 	{
 
@@ -555,6 +571,10 @@ namespace PHOTON_NAMESPACE
 	};
 #endif
 
+	/*****************************************************************************
+	**************************    BuildInputInstance    **************************
+	*****************************************************************************/
+
 	class BuildInputInstance : public OptixInstance
 	{
 
@@ -620,5 +640,4 @@ namespace PHOTON_NAMESPACE
 			return *this;
 		}
 	};
-
 }
