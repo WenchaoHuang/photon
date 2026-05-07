@@ -22,6 +22,7 @@
 #pragma once
 
 #include "fwd.h"
+#include <nucleus/vector_traits.h>
 #include <optix.h>
 #include <array>
 #include <cstdint>
@@ -61,34 +62,14 @@ namespace PHOTON_NAMESPACE
 		};
 
 		template<typename T>
-		inline constexpr bool HasXYZMembers = requires(T value)
-		{
-			value.x;
-			value.y;
-			value.z;
-		};
-
-		template<typename T>
-		inline constexpr bool HasXYMembers = requires(T value)
-		{
-			value.x;
-			value.y;
-		};
-
-		template<typename T>
 		constexpr OptixVertexFormat optixVertexFormat()
 		{
 			using Type = RemoveCVRef<T>;
-			if constexpr (HasXYZMembers<Type>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().x)>, float>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().y)>, float>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().z)>, float>)
+			if constexpr (ns::vec3_like<Type, float>)
 			{
 				return OPTIX_VERTEX_FORMAT_FLOAT3;
 			}
-			else if constexpr (HasXYMembers<Type>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().x)>, float>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().y)>, float>)
+			else if constexpr (ns::vec2_like<Type, float>)
 			{
 				return OPTIX_VERTEX_FORMAT_FLOAT2;
 			}
@@ -120,12 +101,9 @@ namespace PHOTON_NAMESPACE
 		constexpr OptixIndicesFormat optixIndicesFormat()
 		{
 			using Type = RemoveCVRef<T>;
-			if constexpr (HasXYZMembers<Type>
-				&& std::is_unsigned_v<RemoveCVRef<decltype(std::declval<Type &>().x)>>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().x)>, RemoveCVRef<decltype(std::declval<Type &>().y)>>
-				&& std::is_same_v<RemoveCVRef<decltype(std::declval<Type &>().x)>, RemoveCVRef<decltype(std::declval<Type &>().z)>>)
+			if constexpr (ns::vec3_like<Type> && std::is_unsigned_v<ns::scalar_type_t<Type>>)
 			{
-				using ValueType = RemoveCVRef<decltype(std::declval<Type &>().x)>;
+				using ValueType = ns::scalar_type_t<Type>;
 				if constexpr (sizeof(ValueType) == sizeof(uint16_t))
 					return OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3;
 				else if constexpr (sizeof(ValueType) == sizeof(uint32_t))
