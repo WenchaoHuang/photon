@@ -40,21 +40,21 @@ void accel_struct_test()
 	auto & stream = device->defaultStream();
 
 	//	Accel structs can be directly constructed by passing a device context.
-	auto instAccelStrut = std::make_unique<pt::InstAccelStruct>(deviceContext);
-	auto accelStrutAabb = std::make_unique<pt::AccelStructAabb>(deviceContext);
-	auto accelStrutTriangle = std::make_unique<pt::AccelStructTriangle>(deviceContext);
+	auto instAccelStruct = std::make_unique<pt::InstAccelStruct>(deviceContext);
+	auto accelStructAabb = std::make_unique<pt::AccelStructAabb>(deviceContext);
+	auto accelStructTriangle = std::make_unique<pt::AccelStructTriangle>(deviceContext);
 
-	assert(instAccelStrut != nullptr);
-	assert(accelStrutAabb != nullptr);
-	assert(accelStrutTriangle != nullptr);
+	assert(instAccelStruct != nullptr);
+	assert(accelStructAabb != nullptr);
+	assert(accelStructTriangle != nullptr);
 #if OPTIX_VERSION >= 70100
-	auto accelStrutCurve = std::make_unique<pt::AccelStructCurve>(deviceContext);
-	assert(accelStrutCurve != nullptr);
+	auto accelStructCurve = std::make_unique<pt::AccelStructCurve>(deviceContext);
+	assert(accelStructCurve != nullptr);
 #endif
 #if OPTIX_VERSION >= 70500
-	auto accelStrutSphere = std::make_unique<pt::AccelStructSphere>(deviceContext);
-	assert(accelStrutSphere != nullptr);
+	auto accelStructSphere = std::make_unique<pt::AccelStructSphere>(deviceContext);
+	assert(accelStructSphere != nullptr);
 #endif
 
-	accelStrutAabb->refit(stream);
+	accelStructAabb->refit(stream);
 }
