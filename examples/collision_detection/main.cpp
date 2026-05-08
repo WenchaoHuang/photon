@@ -93,7 +93,7 @@ int main()
 	stream.memcpy(vertPos.data(), leafPos.data(), leafPos.size());
 
 	//	accel-struct
-	auto accelStruct = deviceContext->createAccelStructAabb();
+	pt::AccelStructAabb accelStruct(deviceContext);
 	CUdeviceptr aabbPtr = (CUdeviceptr)aabbBuffer.data();
 	unsigned int aabbFlags = OPTIX_GEOMETRY_FLAG_NONE;
 	OptixBuildInputCustomPrimitiveArray buildInput = {};
@@ -104,14 +104,14 @@ int main()
 	buildInput.strideInBytes                = sizeof(pt::Aabb);
 	buildInput.sbtIndexOffsetSizeInBytes    = sizeof(uint32_t);
 	buildInput.sbtIndexOffsetStrideInBytes  = sizeof(uint32_t);
-	accelStruct->build(stream, allocator, buildInput, 200, true, false);
+	accelStruct.build(stream, allocator, buildInput, 200, true, false);
 
 	//	launch parameters
 	LaunchParams hostLaunchParams = {};
 	hostLaunchParams.radius = radius;
 	hostLaunchParams.count = devCount.ptr();
 	hostLaunchParams.vertices = vertPos.ptr();
-	hostLaunchParams.traversable = accelStruct->handle();
+	hostLaunchParams.traversable = accelStruct.handle();
 
 	//	Upload data
 	stream.memcpy(devLaunchParams.data(), &hostLaunchParams,  1);

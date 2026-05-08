@@ -112,7 +112,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 source_group("Source Files" FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/module_impl.h)
 source_group("Source Files" FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline_impl.h)
 source_group("Source Files" FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/denoiser_impl.h)
-source_group("Source Files" FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/accel_struct_impl.h)
 source_group("Source Files" FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/device_context_impl.h)
 
 # Optional: Add tests if enabled
