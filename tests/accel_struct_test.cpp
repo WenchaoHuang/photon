@@ -39,19 +39,20 @@ void accel_struct_test()
 	auto allocator = device->defaultAllocator();
 	auto & stream = device->defaultStream();
 
-	auto instAccelStrut = deviceContext->createInstAccelStruct();
-	auto accelStrutAabb = deviceContext->createAccelStructAabb();
-	auto accelStrutTriangle = deviceContext->createAccelStructTriangle();
+	//	Accel structs can be directly constructed by passing a device context.
+	auto instAccelStrut = std::make_unique<pt::InstAccelStruct>(deviceContext);
+	auto accelStrutAabb = std::make_unique<pt::AccelStructAabb>(deviceContext);
+	auto accelStrutTriangle = std::make_unique<pt::AccelStructTriangle>(deviceContext);
 
 	assert(instAccelStrut != nullptr);
 	assert(accelStrutAabb != nullptr);
 	assert(accelStrutTriangle != nullptr);
 #if OPTIX_VERSION >= 70100
-	auto accelStrutCurve = deviceContext->createAccelStructCurve();
+	auto accelStrutCurve = std::make_unique<pt::AccelStructCurve>(deviceContext);
 	assert(accelStrutCurve != nullptr);
 #endif
 #if OPTIX_VERSION >= 70500
-	auto accelStrutSphere = deviceContext->createAccelStructSphere();
+	auto accelStrutSphere = std::make_unique<pt::AccelStructSphere>(deviceContext);
 	assert(accelStrutSphere != nullptr);
 #endif
 

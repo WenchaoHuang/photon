@@ -23,7 +23,7 @@
 #include "pipeline_impl.h"
 #include "denoiser_impl.h"
 #include "device_context.h"
-#include "accel_struct_impl.h"
+#include <photon/accel_struct.h>
 
 #include <nucleus/device.h>
 #include <nucleus/logger.h>
@@ -158,31 +158,31 @@ ProgramEntry DeviceContext::getBuiltinISEntry(OptixBuiltinISOptions builtinISOpt
 
 std::unique_ptr<InstAccelStruct> DeviceContext::createInstAccelStruct()
 {
-	return std::make_unique<InstAccelStructImpl>(this->shared_from_this());
+	return std::make_unique<InstAccelStruct>(this->shared_from_this());
 }
 
 
 std::unique_ptr<AccelStructAabb> DeviceContext::createAccelStructAabb()
 {
-	return std::make_unique<AccelStructAabbImpl>(this->shared_from_this());
+	return std::make_unique<AccelStructAabb>(this->shared_from_this());
 }
 
 
 std::unique_ptr<AccelStructCurve> DeviceContext::createAccelStructCurve()
 {
-	return std::make_unique<AccelStructCurveImpl>(this->shared_from_this());
+	return std::make_unique<AccelStructCurve>(this->shared_from_this());
 }
 
 
 std::unique_ptr<AccelStructSphere> DeviceContext::createAccelStructSphere()
 {
-	return std::make_unique<AccelStructSphereImpl>(this->shared_from_this());
+	return std::make_unique<AccelStructSphere>(this->shared_from_this());
 }
 
 
 std::unique_ptr<AccelStructTriangle> DeviceContext::createAccelStructTriangle()
 {
-	return std::make_unique<AccelStructTriangleImpl>(this->shared_from_this());
+	return std::make_unique<AccelStructTriangle>(this->shared_from_this());
 }
 
 

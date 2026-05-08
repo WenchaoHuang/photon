@@ -20,7 +20,8 @@
  *	SOFTWARE.
  */
 
-#include "accel_struct_impl.h"
+#include "device_context.h"
+#include <photon/accel_struct.h>
 #include <nucleus/launch_utils.cuh>
 #include <optix_stubs.h>
 
@@ -61,16 +62,16 @@ static_assert(static_cast<int>(InstAccelStruct::InstFlags::ForceOpacityMicromapA
 #endif
 
 /*********************************************************************************
-*****************************    AccelStructBase    ******************************
+********************************    AccelStruct    ********************************
 *********************************************************************************/
 
-AccelStructBase::AccelStructBase(std::shared_ptr<DeviceContext> deviceContext) : m_deviceContext(deviceContext), m_hTraversable(0), m_numSbtRecords(0), m_headerSize(0)
+AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_deviceContext(deviceContext), m_hTraversable(0), m_numSbtRecords(0), m_headerSize(0)
 {
 	m_buildOptions = OptixAccelBuildOptions{};
 }
 
 
-void AccelStructBase::build(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize)
+void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize)
 {
 	OptixAccelBufferSizes accelBufferSizes = {};
 
@@ -134,7 +135,7 @@ void AccelStructBase::build(ns::Stream & stream, ns::AllocPtr allocator, const s
 }
 
 
-void AccelStructBase::rebuild(ns::Stream & stream)
+void AccelStruct::rebuild(ns::Stream & stream)
 {
 	if (m_hTraversable != 0)
 	{
@@ -176,7 +177,7 @@ void AccelStructBase::rebuild(ns::Stream & stream)
 }
 
 
-void AccelStructBase::refit(ns::Stream & stream)
+void AccelStruct::refit(ns::Stream & stream)
 {
 	OptixResult err = OPTIX_SUCCESS;
 
@@ -213,16 +214,22 @@ void AccelStructBase::refit(ns::Stream & stream)
 }
 
 
-AccelStructBase::~AccelStructBase()
+AccelStruct::~AccelStruct()
 {
 
 }
 
 /*********************************************************************************
-*************************    AccelStructTriangleImpl    **************************
+****************************    AccelStructTriangle    ****************************
 *********************************************************************************/
 
-void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+AccelStructTriangle::AccelStructTriangle(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
+{
+
+}
+
+
+void AccelStructTriangle::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_buildInputs.resize(buildInputs.size());
@@ -246,11 +253,11 @@ void AccelStructTriangleImpl::build(ns::Stream & stream, ns::AllocPtr allocator,
 
 	this->makeOptixBuildInputs(m_cachedBuildInputs);
 
-	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
+	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-void AccelStructTriangleImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
+void AccelStructTriangle::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -262,10 +269,16 @@ void AccelStructTriangleImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> 
 }
 
 /*********************************************************************************
-***************************    AccelStructAabbImpl    ****************************
+******************************    AccelStructAabb    *****************************
 *********************************************************************************/
 
-void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+AccelStructAabb::AccelStructAabb(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
+{
+
+}
+
+
+void AccelStructAabb::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_buildInputs.resize(buildInputs.size());
@@ -289,11 +302,11 @@ void AccelStructAabbImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 
 	this->makeOptixBuildInputs(m_cachedBuildInputs);
 
-	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
+	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-void AccelStructAabbImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
+void AccelStructAabb::makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -310,12 +323,18 @@ void AccelStructAabbImpl::makeOptixBuildInputs(std::vector<OptixBuildInput> & ou
 }
 
 /*********************************************************************************
-***************************    AccelStructCurveImpl    ***************************
+*****************************    AccelStructCurve    *****************************
 *********************************************************************************/
 
 #if OPTIX_VERSION >= 70100
 
-void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+AccelStructCurve::AccelStructCurve(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
+{
+
+}
+
+
+void AccelStructCurve::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_buildInputs.resize(buildInputs.size());
 	m_numSbtRecords = static_cast<uint32_t>(buildInputs.size());
@@ -338,11 +357,11 @@ void AccelStructCurveImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns
 
 	this->makeOptixBuildInputs(m_cachedBuildInputs);
 
-	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
+	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-void AccelStructCurveImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void AccelStructCurve::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -356,12 +375,18 @@ void AccelStructCurveImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& ou
 #endif	//	OPTIX_VERSION >= 70100
 
 /*********************************************************************************
-**************************    AccelStructSphereImpl    ***************************
+****************************    AccelStructSphere    *****************************
 *********************************************************************************/
 
 #if OPTIX_VERSION >= 70500
 
-void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
+AccelStructSphere::AccelStructSphere(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
+{
+
+}
+
+
+void AccelStructSphere::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
 {
 	m_numSbtRecords = 0;
 	m_buildInputs.resize(buildInputs.size());
@@ -385,11 +410,11 @@ void AccelStructSphereImpl::build(ns::Stream & stream, ns::AllocPtr allocator, n
 
 	this->makeOptixBuildInputs(m_cachedBuildInputs);
 
-	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
+	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
 
 
-void AccelStructSphereImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void AccelStructSphere::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
 	out.resize(m_buildInputs.size());
 
@@ -403,10 +428,16 @@ void AccelStructSphereImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& o
 #endif	//	OPTIX_VERSION >= 70500
 
 /*********************************************************************************
-***************************    InstAccelStructImpl    ****************************
+******************************    InstAccelStruct    *****************************
 *********************************************************************************/
 
-void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate)
+InstAccelStruct::InstAccelStruct(std::shared_ptr<DeviceContext> deviceContext) : AccelStruct(std::move(deviceContext))
+{
+
+}
+
+
+void InstAccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate)
 {
 	m_hostInstances.resize(buildInputs.size());
 	m_instances.resize(allocator, buildInputs.size());
@@ -431,27 +462,27 @@ void InstAccelStructImpl::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 
 	this->makeOptixBuildInputs(m_cachedBuildInputs);
 
-	AccelStructBase::build(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
+	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
 }
 
 
-void InstAccelStructImpl::rebuild(ns::Stream & stream)
+void InstAccelStruct::rebuild(ns::Stream & stream)
 {
 	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
 
-	AccelStructBase::rebuild(stream);
+	AccelStruct::rebuild(stream);
 }
 
 
-void InstAccelStructImpl::refit(ns::Stream & stream)
+void InstAccelStruct::refit(ns::Stream & stream)
 {
 	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
 
-	AccelStructBase::refit(stream);
+	AccelStruct::refit(stream);
 }
 
 
-void InstAccelStructImpl::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
+void InstAccelStruct::makeOptixBuildInputs(std::vector<OptixBuildInput>& out) const
 {
 	out.resize(1);
 
