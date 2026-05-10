@@ -45,6 +45,7 @@ void accel_struct_test()
 	auto accelStructTriangle = std::make_unique<pt::AccelStructTriangle>(deviceContext);
 	pt::AccelBuildOptions accelBuildOptions = {};
 	accelBuildOptions.headerSize = 64;
+	accelBuildOptions.preferFastTrace = true;
 	accelBuildOptions.allowCompaction = true;
 	accelBuildOptions.allowUpdate = true;
 
