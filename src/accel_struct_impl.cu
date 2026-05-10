@@ -447,19 +447,3 @@ void InstAccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
 }
-
-
-void InstAccelStruct::rebuild(ns::Stream & stream)
-{
-	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
-
-	AccelStruct::rebuild(stream);
-}
-
-
-void InstAccelStruct::refit(ns::Stream & stream)
-{
-	stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size());
-
-	AccelStruct::refit(stream);
-}

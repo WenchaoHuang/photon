@@ -406,10 +406,10 @@ namespace PHOTON_NAMESPACE
 		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate);
 
 		//	Uploads the current host-side instance data and then rebuilds the IAS.
-		PHOTON_API void rebuild(ns::Stream & stream) override;
+		void rebuild(ns::Stream & stream) override { stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size()); AccelStruct::rebuild(stream); }
 
 		//	Uploads the current host-side instance data and then refits the IAS.
-		PHOTON_API void refit(ns::Stream & stream) override;
+		void refit(ns::Stream & stream) override { stream.memcpy(m_instances.data(), m_hostInstances.data(), m_hostInstances.size()); AccelStruct::refit(stream); }
 
 	private:
 
