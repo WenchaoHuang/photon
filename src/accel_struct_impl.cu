@@ -30,16 +30,6 @@ PHOTON_USING_NAMESPACE
 
 namespace
 {
-	OptixMotionOptions defaultMotionOptions()
-	{
-		OptixMotionOptions motionOptions = {};
-		motionOptions.numKeys = 0;
-		motionOptions.timeBegin = 0.0f;
-		motionOptions.timeEnd = 0.0f;
-		motionOptions.flags = OPTIX_MOTION_FLAG_NONE;
-		return motionOptions;
-	}
-
 	OptixAccelBuildOptions toOptixBuildOptions(const AccelBuildOptions & buildOptions)
 	{
 		OptixAccelBuildOptions optixBuildOptions = {};
@@ -262,7 +252,6 @@ namespace
 AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_deviceContext(deviceContext), m_hTraversable(0)
 {
 	m_optixBuildOptions = OptixAccelBuildOptions{};
-	m_buildDesc.motionOptions = defaultMotionOptions();
 }
 
 
@@ -451,7 +440,6 @@ void AccelStructTriangle::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 	buildOptions.headerSize = headerSize;
 	buildOptions.preferFastTrace = preferFastTrace;
 	buildOptions.allowUpdate = allowUpdate;
-	buildOptions.motionOptions = defaultMotionOptions();
 	this->build(stream, allocator, buildInputs, buildOptions);
 }
 
@@ -505,7 +493,6 @@ void AccelStructAabb::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 	buildOptions.headerSize = headerSize;
 	buildOptions.preferFastTrace = preferFastTrace;
 	buildOptions.allowUpdate = allowUpdate;
-	buildOptions.motionOptions = defaultMotionOptions();
 	this->build(stream, allocator, buildInputs, buildOptions);
 }
 
@@ -567,7 +554,6 @@ void AccelStructCurve::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Ar
 	buildOptions.headerSize = headerSize;
 	buildOptions.preferFastTrace = preferFastTrace;
 	buildOptions.allowUpdate = allowUpdate;
-	buildOptions.motionOptions = defaultMotionOptions();
 	this->build(stream, allocator, buildInputs, buildOptions);
 }
 
@@ -624,7 +610,6 @@ void AccelStructSphere::build(ns::Stream & stream, ns::AllocPtr allocator, ns::A
 	buildOptions.headerSize = headerSize;
 	buildOptions.preferFastTrace = preferFastTrace;
 	buildOptions.allowUpdate = allowUpdate;
-	buildOptions.motionOptions = defaultMotionOptions();
 	this->build(stream, allocator, buildInputs, buildOptions);
 }
 
@@ -679,7 +664,6 @@ void InstAccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 	AccelBuildOptions buildOptions = {};
 	buildOptions.preferFastTrace = preferFastTrace;
 	buildOptions.allowUpdate = allowUpdate;
-	buildOptions.motionOptions = defaultMotionOptions();
 	this->build(stream, allocator, buildInputs, buildOptions);
 }
 
