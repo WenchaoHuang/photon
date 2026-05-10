@@ -53,7 +53,7 @@ namespace
 			 || (buildOptions.motionOptions.timeEnd != 0.0f)
 			 || (buildOptions.motionOptions.flags != OPTIX_MOTION_FLAG_NONE))
 			{
-				throw std::invalid_argument("Motion options must stay zeroed when numKeys is 0.");
+				throw std::invalid_argument("Motion options (timeBegin, timeEnd, flags) must remain at default values when numKeys is 0.");
 			}
 		}
 	}
@@ -169,7 +169,7 @@ namespace
 				throw std::invalid_argument("Instance build inputs require valid traversable handles.");
 
 			if (isZeroTransform(buildInput))
-				throw std::invalid_argument("Instance build inputs require a valid 3x4 affine transform.");
+				throw std::invalid_argument("Instance build inputs require a non-zero 3x4 affine transform matrix.");
 		}
 	}
 
@@ -244,7 +244,7 @@ namespace
 			throw std::invalid_argument("Instance refit cannot change the number of instances.");
 	}
 
-	void markPrepareBuildInputsStreamUnused(ns::Stream & stream)
+	void suppressUnusedStreamWarning(ns::Stream & stream)
 	{
 		//	Geometry acceleration structures keep the stream parameter only because
 		//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
@@ -272,7 +272,7 @@ void AccelStruct::buildPrepared(ns::Stream & stream, ns::AllocPtr allocator, con
 void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize)
 {
 	OptixAccelBufferSizes accelBufferSizes = {};
-	const size_t requestedHeaderSize = headerSize;
+	const size_t requestedHeaderSize = headerSize;	//	User-visible header size before alignment.
 
 	buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
@@ -469,7 +469,7 @@ void AccelStructTriangle::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildIn
 
 void AccelStructTriangle::prepareBuildInputs(ns::Stream & stream)
 {
-	markPrepareBuildInputsStreamUnused(stream);
+	suppressUnusedStreamWarning(stream);
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputTriangleArray & source) { buildInput.triangleArray = source; });
 }
@@ -522,7 +522,7 @@ void AccelStructAabb::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputC
 
 void AccelStructAabb::prepareBuildInputs(ns::Stream & stream)
 {
-	markPrepareBuildInputsStreamUnused(stream);
+	suppressUnusedStreamWarning(stream);
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCustomPrimitiveArray & source)
 					   {
@@ -583,7 +583,7 @@ void AccelStructCurve::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInput
 
 void AccelStructCurve::prepareBuildInputs(ns::Stream & stream)
 {
-	markPrepareBuildInputsStreamUnused(stream);
+	suppressUnusedStreamWarning(stream);
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CURVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCurveArray & source) { buildInput.curveArray = source; });
 }
@@ -639,7 +639,7 @@ void AccelStructSphere::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInpu
 
 void AccelStructSphere::prepareBuildInputs(ns::Stream & stream)
 {
-	markPrepareBuildInputsStreamUnused(stream);
+	suppressUnusedStreamWarning(stream);
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_SPHERES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputSphereArray & source) { buildInput.sphereArray = source; });
 }
