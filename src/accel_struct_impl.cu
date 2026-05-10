@@ -463,6 +463,8 @@ void AccelStructTriangle::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildIn
 
 void AccelStructTriangle::prepareBuildInputs(ns::Stream & stream)
 {
+	//	Only IAS needs the stream for host->device uploads; GAS variants keep the
+	//	stream parameter to satisfy the shared virtual interface.
 	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputTriangleArray & source) { buildInput.triangleArray = source; });
@@ -516,6 +518,8 @@ void AccelStructAabb::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputC
 
 void AccelStructAabb::prepareBuildInputs(ns::Stream & stream)
 {
+	//	Only IAS needs the stream for host->device uploads; GAS variants keep the
+	//	stream parameter to satisfy the shared virtual interface.
 	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCustomPrimitiveArray & source)
@@ -577,6 +581,8 @@ void AccelStructCurve::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInput
 
 void AccelStructCurve::prepareBuildInputs(ns::Stream & stream)
 {
+	//	Only IAS needs the stream for host->device uploads; GAS variants keep the
+	//	stream parameter to satisfy the shared virtual interface.
 	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CURVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCurveArray & source) { buildInput.curveArray = source; });
@@ -633,6 +639,8 @@ void AccelStructSphere::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInpu
 
 void AccelStructSphere::prepareBuildInputs(ns::Stream & stream)
 {
+	//	Only IAS needs the stream for host->device uploads; GAS variants keep the
+	//	stream parameter to satisfy the shared virtual interface.
 	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_SPHERES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputSphereArray & source) { buildInput.sphereArray = source; });

@@ -43,7 +43,7 @@ namespace PHOTON_NAMESPACE
 		bool				preferFastTrace = true;
 		bool				allowUpdate = false;
 		bool				allowCompaction = false;
-		OptixMotionOptions	motionOptions = OptixMotionOptions{ 0, 0.0f, 0.0f, OPTIX_MOTION_FLAG_NONE };
+		OptixMotionOptions	motionOptions = {};
 	};
 
 	struct AccelBufferLayout
