@@ -232,7 +232,16 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
+		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
+		{
+			out.resize(m_buildInputs.size());
+
+			for (size_t i = 0; i < m_buildInputs.size(); i++)
+			{
+				out[i].type				= OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+				out[i].triangleArray	= m_buildInputs[i];
+			}
+		}
 
 	private:
 
@@ -263,7 +272,21 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
+		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
+		{
+			out.resize(m_buildInputs.size());
+
+			for (size_t i = 0; i < m_buildInputs.size(); i++)
+			{
+			#if OPTIX_VERSION >= 70100
+				out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+				out[i].customPrimitiveArray		= m_buildInputs[i];
+			#else
+				out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+				out[i].aabbArray				= m_buildInputs[i];
+			#endif
+			}
+		}
 
 	private:
 
@@ -313,7 +336,16 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
+		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
+		{
+			out.resize(m_buildInputs.size());
+
+			for (size_t i = 0; i < m_buildInputs.size(); i++)
+			{
+				out[i].type			= OPTIX_BUILD_INPUT_TYPE_CURVES;
+				out[i].curveArray	= m_buildInputs[i];
+			}
+		}
 
 	private:
 
@@ -349,7 +381,16 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
+		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
+		{
+			out.resize(m_buildInputs.size());
+
+			for (size_t i = 0; i < m_buildInputs.size(); i++)
+			{
+				out[i].type				= OPTIX_BUILD_INPUT_TYPE_SPHERES;
+				out[i].sphereArray		= m_buildInputs[i];
+			}
+		}
 
 	private:
 
@@ -433,7 +474,18 @@ namespace PHOTON_NAMESPACE
 
 	protected:
 
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override;
+		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
+		{
+			out.resize(1);
+
+			out[0]												= {};
+			out[0].type											= OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+			out[0].instanceArray.instances						= (CUdeviceptr)m_instances.data();
+		#if OPTIX_VERSION >= 70600
+			out[0].instanceArray.instanceStride					= sizeof(OptixInstance);
+		#endif
+			out[0].instanceArray.numInstances					= static_cast<uint32_t>(m_instances.size());
+		}
 
 	private:
 
