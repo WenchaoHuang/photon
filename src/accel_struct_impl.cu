@@ -295,11 +295,10 @@ void AccelStructAabb::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 
 	for (size_t i = 0; i < m_buildInputs.size(); i++)
 	{
+		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
 	#if OPTIX_VERSION >= 70100
-		m_cachedBuildInputs[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
 		m_cachedBuildInputs[i].customPrimitiveArray		= m_buildInputs[i];
 	#else
-		m_cachedBuildInputs[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
 		m_cachedBuildInputs[i].aabbArray				= m_buildInputs[i];
 	#endif
 	}
