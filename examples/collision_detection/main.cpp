@@ -104,10 +104,10 @@ int main()
 	buildInput.strideInBytes                = sizeof(pt::Aabb);
 	buildInput.sbtIndexOffsetSizeInBytes    = sizeof(uint32_t);
 	buildInput.sbtIndexOffsetStrideInBytes  = sizeof(uint32_t);
-	pt::AccelBuildOptions accelBuildOptions = {};
-	accelBuildOptions.headerSize = 200;
-	accelBuildOptions.preferFastTrace = true;
-	accelStruct.build(stream, allocator, buildInput, accelBuildOptions);
+
+	pt::AccelStruct::BuildOptions buildOptions = { .headerSize = 200 };
+
+	accelStruct.build(stream, allocator, buildInput, buildOptions);
 
 	//	launch parameters
 	LaunchParams hostLaunchParams = {};

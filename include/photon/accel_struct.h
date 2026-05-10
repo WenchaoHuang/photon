@@ -27,31 +27,15 @@
 #include <nucleus/vector_types.h>
 #include <nucleus/device_pointer.h>
 #include <optix.h>
-#include <vector>
 
 //	Backward compatibility: OptixBuildInputAabbArray was renamed to
 //	OptixBuildInputCustomPrimitiveArray in OptiX 7.1.
 #if OPTIX_VERSION < 70100
-	typedef OptixBuildInputAabbArray	OptixBuildInputCustomPrimitiveArray;
+	typedef OptixBuildInputAabbArray		OptixBuildInputCustomPrimitiveArray;
 #endif
 
 namespace PHOTON_NAMESPACE
 {
-	struct AccelBuildOptions
-	{
-		size_t				headerSize = 0;
-		bool				preferFastTrace = true;
-		bool				allowUpdate = false;
-		bool				allowCompaction = false;
-		OptixMotionOptions	motionOptions = {};
-	};
-
-	struct AccelBufferLayout
-	{
-		size_t	headerSize = 0;
-		size_t	accelBufferOffset = 0;
-	};
-
 	/*****************************************************************************
 	*****************************    AccelStruct    ******************************
 	*****************************************************************************/
@@ -64,6 +48,14 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
+		//	Construct with the device context that owns this structure.
+		PHOTON_API explicit AccelStruct(std::shared_ptr<class DeviceContext> deviceContext);
+
+		//	Virtual destructor.
+		virtual ~AccelStruct() {}
+
+	public:
+
 		//	Enum defining different subtypes of acceleration structures.
 		enum SubType
 		{
@@ -71,13 +63,14 @@ namespace PHOTON_NAMESPACE
 			Instance,		//	Instance acceleration structure (IAS).
 		};
 
-		//	Construct with the device context that owns this structure.
-		PHOTON_API explicit AccelStruct(std::shared_ptr<class DeviceContext> deviceContext);
+		//	Struct encapsulating build options for acceleration structure construction.
+		struct BuildOptions
+		{
+			size_t					headerSize;
+			OptixBuildFlags			buildFlags;
+			OptixMotionOptions		motionOptions;
+		};
 
-		//	Virtual destructor.
-		PHOTON_API virtual ~AccelStruct();
-
-	public:
 
 		//	Returns the subtype (Geometry or Instance) of this acceleration structure.
 		virtual SubType subType() const = 0;
@@ -92,27 +85,12 @@ namespace PHOTON_NAMESPACE
 		std::shared_ptr<class DeviceContext> deviceContext() const { return m_deviceContext; }
 
 		//	Returns true if the acceleration structure was built with update support.
-		bool allowUpdate() const { return (m_optixBuildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE) != 0; }
-
-		//	Returns the high-level options used for the current build state.
-		const AccelBuildOptions & buildOptions() const { return m_buildDesc; }
-
-		//	Returns the user-header / acceleration-data layout of the output buffer.
-		const AccelBufferLayout & bufferLayout() const { return m_bufferLayout; }
-
-		//	Rebuilds the acceleration structure in-place using the last build inputs.
-		PHOTON_API virtual void rebuild(ns::Stream & stream);
-
-		/**
-		 *	@brief		Refits the acceleration structure without changing topology.
-		 *	@warning	Only the device pointers and/or their buffer content may be changed.
-		 */
-		PHOTON_API virtual void refit(ns::Stream & stream);
+		bool allowUpdate() const { return (m_buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE) != 0; }
 
 	protected:
 
 		//	Returns true if compaction was enabled when the structure was built.
-		bool allowCompaction() const { return (m_optixBuildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION) != 0; }
+		bool allowCompaction() const { return (m_buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION) != 0; }
 
 		/**
 		 *	@brief		Returns a device pointer to the user header buffer prepended to the GAS output.
@@ -120,33 +98,36 @@ namespace PHOTON_NAMESPACE
 		 */
 		dev::Ptr<unsigned char> gasHeaderBuffer()
 		{
-			if ((m_bufferLayout.headerSize != 0) && this->allowCompaction())
-				return dev::Ptr<unsigned char>(m_compactedBuffer.data(), m_bufferLayout.headerSize);
-			else if (m_bufferLayout.headerSize != 0)
-				return dev::Ptr<unsigned char>(m_outputBuffer.data(), m_bufferLayout.headerSize);
+			if ((m_headerSize != 0) && this->allowCompaction())
+				return dev::Ptr<unsigned char>(m_compactedBuffer.data(), m_headerSize);
+			else if (m_headerSize != 0)
+				return dev::Ptr<unsigned char>(m_outputBuffer.data(), m_headerSize);
 			else
 				return dev::Ptr<unsigned char>(nullptr);
 		}
 
-		//	Derived classes refresh cached OptiX build inputs from their stored sources.
-		PHOTON_API virtual void prepareBuildInputs(ns::Stream & stream) = 0;
+		//	Internal build helper called by each concrete subclass build() method.
+		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, BuildOptions buildOptions);
 
-		//	Internal build helper used after the concrete source state has been stored.
-		PHOTON_API void buildPrepared(ns::Stream & stream, ns::AllocPtr allocator, const AccelBuildOptions & buildOptions);
+		//	Rebuilds the acceleration structure in-place using the last build inputs.
+		PHOTON_API void rebuild(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs);
+
+		/**
+		 *	@brief		Refits the acceleration structure without changing topology.
+		 *	@warning	Only the device pointers and/or their buffer content may be changed.
+		 */
+		PHOTON_API void refit(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs);
+
+		size_t										m_headerSize;
+		std::vector<OptixBuildInput>				m_cachedBuildInputs;
 
 	private:
 
-		//	Internal build helper called after build inputs have been prepared.
-		PHOTON_API void buildBase(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize);
-
-		mutable std::vector<OptixBuildInput>		m_cachedBuildInputs;
 		ns::Array<unsigned char>					m_tempBuffer;
 		ns::Array<unsigned char>					m_outputBuffer;
 		ns::Array<unsigned char>					m_compactedBuffer;
 		OptixTraversableHandle						m_hTraversable;
-		OptixAccelBuildOptions						m_optixBuildOptions;
-		AccelBuildOptions							m_buildDesc;
-		AccelBufferLayout							m_bufferLayout;
+		OptixAccelBuildOptions						m_buildOptions;
 		const std::shared_ptr<class DeviceContext>	m_deviceContext;
 	};
 
@@ -206,49 +187,58 @@ namespace PHOTON_NAMESPACE
 		 */
 		dev::Ptr<unsigned char> headerBuffer() { return this->gasHeaderBuffer(); }
 
-		//!	Returns the user-visible header size in bytes.
-		size_t headerSize() const { return this->bufferLayout().headerSize; }
-
-		//!	Returns the aligned offset from the output buffer start to the OptiX accel data.
-		size_t accelBufferOffset() const { return this->bufferLayout().accelBufferOffset; }
+		//!	Returns the size of the header region in bytes (as passed to build()).
+		size_t headerSize() const { return m_headerSize; }
 	};
 
 	/*****************************************************************************
 	*************************    AccelStructTriangle    **************************
 	*****************************************************************************/
 
-	//	Concrete GAS for built-in triangle primitives.
+	//!	@brief		Concrete GAS for built-in triangle primitives.
 	class AccelStructTriangle : public GeomAccelStruct
 	{
 
 	public:
 
-		//	Returns PrimitiveType::Triangle.
+		//!	@brief	Constructs an empty triangle GAS associated with the given device context.
+		explicit AccelStructTriangle(std::shared_ptr<class DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext)) {}
+
+		//!	@brief	Builds the triangle GAS from the supplied build inputs.
+		void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, BuildOptions buildOptions)
+		{
+			AccelStruct::build(stream, allocator, this->makeBuildInput(buildInputs), buildOptions);
+		}
+
+		//!	@brief	Rebuilds the triangle GAS from the supplied build inputs.
+		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs)
+		{
+			AccelStruct::rebuild(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Refits the triangle GAS from the supplied build inputs.
+		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs)
+		{
+			AccelStruct::refit(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Returns PrimitiveType::Triangle.
 		PrimitiveType primitiveType() const override final { return PrimitiveType::Triangle; }
-
-		//	Constructs an empty triangle GAS associated with the given device context.
-		PHOTON_API explicit AccelStructTriangle(std::shared_ptr<class DeviceContext> deviceContext);
-
-		//	Builds the triangle GAS from the supplied build inputs.
-		//	Callers should zero-initialize each OptixBuildInputTriangleArray first
-		//	(e.g. OptixBuildInputTriangleArray{}), then populate all required OptiX
-		//	fields before calling build(). In particular, initialize the vertex data
-		//	(description pointers/count, vertexFormat, and vertexStrideInBytes) and,
-		//	when indexed triangles are used, the index data (index buffer/count,
-		//	indexFormat, and indexStrideInBytes). Also provide per-input flags /
-		//	numSbtRecords as required by the OptiX build input contract.
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, const AccelBuildOptions & buildOptions);
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-		PHOTON_API void rebuild(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs);
-		PHOTON_API void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs);
-
-	protected:
-
-		PHOTON_API void prepareBuildInputs(ns::Stream & stream) override;
 
 	private:
 
-		std::vector<OptixBuildInputTriangleArray>	m_buildSources;
+		//!	@brief	Helper function to convert triangle build inputs to the generic `OptixBuildInput` format.
+		const std::vector<OptixBuildInput> & makeBuildInput(ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs)
+		{
+			m_cachedBuildInputs.resize(buildInputs.size());
+
+			for (size_t i = 0; i < m_cachedBuildInputs.size(); i++)
+			{
+				m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+				m_cachedBuildInputs[i].triangleArray = buildInputs[i];
+			}
+			return m_cachedBuildInputs;
+		}
 	};
 
 	/*****************************************************************************
@@ -261,31 +251,54 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Returns PrimitiveType::AABB.
+		//!	@brief	Constructs an empty AABB GAS associated with the given device context.
+		explicit AccelStructAabb(std::shared_ptr<class DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext)) {}
+
+		//!	@brief	Builds the AABB GAS from the supplied build inputs.
+		void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, BuildOptions buildOptions)
+		{
+			AccelStruct::build(stream, allocator, this->makeBuildInput(buildInputs), buildOptions);
+		}
+
+		//!	@brief	Rebuilds the AABB GAS from the supplied build inputs.
+		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs)
+		{
+			AccelStruct::rebuild(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Refits the AABB GAS from the supplied build inputs.
+		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs)
+		{
+			AccelStruct::refit(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Returns PrimitiveType::AABB.
 		PrimitiveType primitiveType() const override final { return PrimitiveType::AABB; }
-
-		//	Constructs an empty AABB GAS associated with the given device context.
-		PHOTON_API explicit AccelStructAabb(std::shared_ptr<class DeviceContext> deviceContext);
-
-		//	Builds the AABB GAS from the supplied build inputs.
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, const AccelBuildOptions & buildOptions);
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-		PHOTON_API void rebuild(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs);
-		PHOTON_API void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs);
-
-	protected:
-
-		PHOTON_API void prepareBuildInputs(ns::Stream & stream) override;
 
 	private:
 
-		std::vector<OptixBuildInputCustomPrimitiveArray>	m_buildSources;
+		//!	@brief	Helper function to convert custom primitive build inputs to the generic `OptixBuildInput` format.
+		const std::vector<OptixBuildInput> & makeBuildInput(ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs)
+		{
+			m_cachedBuildInputs.resize(buildInputs.size());
+
+			for (size_t i = 0; i < m_cachedBuildInputs.size(); i++)
+			{
+				m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+			#if OPTIX_VERSION >= 70100
+				m_cachedBuildInputs[i].customPrimitiveArray = buildInputs[i];
+			#else
+				m_cachedBuildInputs[i].aabbArray = buildInputs[i];
+			#endif
+			}
+			return m_cachedBuildInputs;
+		}
 	};
 
 	/*****************************************************************************
 	***************************    AccelStructCurve    ***************************
 	*****************************************************************************/
-
+	
 #if OPTIX_VERSION >= 70100
 	/**
 	 *	@note		Requires Optix version >= 7.1.0
@@ -296,25 +309,44 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Returns PrimitiveType::Curve.
+		//!	@brief	Constructs an empty curve GAS associated with the given device context.
+		explicit AccelStructCurve(std::shared_ptr<class DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext)) {}
+
+		//!	@brief	Builds the curve GAS from the supplied build inputs.
+		void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, BuildOptions buildOptions)
+		{
+			AccelStruct::build(stream, allocator, this->makeBuildInput(buildInputs), buildOptions);
+		}
+
+		//!	@brief	Rebuilds the curve GAS from the supplied build inputs.
+		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs)
+		{
+			AccelStruct::rebuild(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Refits the curve GAS from the supplied build inputs.
+		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs)
+		{
+			AccelStruct::refit(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Returns PrimitiveType::Curve.
 		PrimitiveType primitiveType() const override final { return PrimitiveType::Curve; }
-
-		//	Constructs an empty curve GAS associated with the given device context.
-		PHOTON_API explicit AccelStructCurve(std::shared_ptr<class DeviceContext> deviceContext);
-
-		//	Builds the curve GAS from the supplied build inputs.
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, const AccelBuildOptions & buildOptions);
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-		PHOTON_API void rebuild(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs);
-		PHOTON_API void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs);
-
-	protected:
-
-		PHOTON_API void prepareBuildInputs(ns::Stream & stream) override;
 
 	private:
 
-		std::vector<OptixBuildInputCurveArray>	m_buildSources;
+		//!	@brief	Helper function to convert curve build inputs to the generic `OptixBuildInput` format.
+		const std::vector<OptixBuildInput> & makeBuildInput(ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs)
+		{
+			m_cachedBuildInputs.resize(buildInputs.size());
+
+			for (size_t i = 0; i < m_cachedBuildInputs.size(); i++)
+			{
+				m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CURVES;
+				m_cachedBuildInputs[i].curveArray = buildInputs[i];
+			}
+			return m_cachedBuildInputs;
+		}
 	};
 #endif
 
@@ -332,25 +364,44 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Returns PrimitiveType::Sphere.
+		//!	@brief	Constructs an empty sphere GAS associated with the given device context.
+		explicit AccelStructSphere(std::shared_ptr<class DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext)) {}
+
+		//!	@brief	Builds the sphere GAS from the supplied build inputs.
+		void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, BuildOptions buildOptions)
+		{
+			AccelStruct::build(stream, allocator, this->makeBuildInput(buildInputs), buildOptions);
+		}
+
+		//!	@brief	Rebuilds the sphere GAS from the supplied build inputs.
+		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs)
+		{
+			AccelStruct::rebuild(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Refits the sphere GAS from the supplied build inputs.
+		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs)
+		{
+			AccelStruct::refit(stream, this->makeBuildInput(buildInputs));
+		}
+
+		//!	@brief	Returns PrimitiveType::Sphere.
 		PrimitiveType primitiveType() const override final { return PrimitiveType::Sphere; }
-
-		//	Constructs an empty sphere GAS associated with the given device context.
-		PHOTON_API explicit AccelStructSphere(std::shared_ptr<class DeviceContext> deviceContext);
-
-		//	Builds the sphere GAS from the supplied build inputs.
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, const AccelBuildOptions & buildOptions);
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-		PHOTON_API void rebuild(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs);
-		PHOTON_API void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs);
-
-	protected:
-
-		PHOTON_API void prepareBuildInputs(ns::Stream & stream) override;
 
 	private:
 
-		std::vector<OptixBuildInputSphereArray>	m_buildSources;
+		//!	@brief	Helper function to convert sphere build inputs to the generic `OptixBuildInput` format.
+		const std::vector<OptixBuildInput> & makeBuildInput(ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs)
+		{
+			m_cachedBuildInputs.resize(buildInputs.size());
+
+			for (size_t i = 0; i < m_cachedBuildInputs.size(); i++)
+			{
+				m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
+				m_cachedBuildInputs[i].sphereArray = buildInputs[i];
+			}
+			return m_cachedBuildInputs;
+		}
 	};
 #endif
 
@@ -364,46 +415,39 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		//	Constructs an empty IAS associated with the given device context.
-		PHOTON_API explicit InstAccelStruct(std::shared_ptr<class DeviceContext> deviceContext);
+		//!	@brief	Constructs an empty IAS associated with the given device context.
+		explicit InstAccelStruct(std::shared_ptr<class DeviceContext> deviceContext) : AccelStruct(std::move(deviceContext)) {}
 
-		//	Returns SubType::Instance.
+		//!	@brief	Uploads the current host-side instance data and then builds the IAS.
+		void build(ns::Stream & stream, ns::AllocPtr allocator, OptixBuildInputInstanceArray buildInput, BuildOptions buildOptions)
+		{
+			AccelStruct::build(stream, allocator, this->makeBuildInput(buildInput), buildOptions);
+		}
+
+		//!	@brief	Uploads the current host-side instance data and then rebuilds the IAS.
+		void rebuild(ns::Stream & stream, OptixBuildInputInstanceArray buildInput)
+		{
+			AccelStruct::rebuild(stream, this->makeBuildInput(buildInput));
+		}
+
+		//!	@brief	Uploads the current host-side instance data and then refits the IAS.
+		void refit(ns::Stream & stream, OptixBuildInputInstanceArray buildInput)
+		{
+			AccelStruct::refit(stream, this->makeBuildInput(buildInput));
+		}
+
+		//!	@brief	Returns SubType::Instance.
 		SubType subType() const override final { return SubType::Instance; }
-
-		/**
-		 *	Builds the IAS from the supplied instance descriptors.
-		 *
-		 *	The supplied OptixInstance values are passed through directly and must already
-		 *	satisfy OptiX requirements. In particular:
-		 *	- traversableHandle must be valid,
-		 *	- transform must be a valid row-major 3x4 affine transform array,
-		 *	  typically identity if no transform is intended,
-		 *	- visibilityMask should be set intentionally (commonly 255 for full visibility),
-		 *	- sbtOffset should be set to the intended SBT record offset (commonly 0 when
-		 *	  no per-instance offset is needed),
-		 *	- flags should be set to the intended OptixInstanceFlags value(s), or 0 when
-		 *	  no special instance flags are required.
-		 *
-		 *	Passing zero-initialized OptixInstance values is unsafe because the transform
-		 *	field would not describe a valid identity transform.
-		 */
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, const AccelBuildOptions & buildOptions);
-		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate);
-		PHOTON_API void rebuild(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs);
-		PHOTON_API void refit(ns::Stream & stream, ns::ArrayProxy<OptixInstance> buildInputs);
-
-		//	Uploads the current host-side instance data and then rebuilds the IAS.
-		PHOTON_API void rebuild(ns::Stream & stream) override;
-
-		//	Uploads the current host-side instance data and then refits the IAS.
-		PHOTON_API void refit(ns::Stream & stream) override;
 
 	private:
 
-		PHOTON_API void prepareBuildInputs(ns::Stream & stream) override;
-
-		std::vector<OptixInstance>		m_buildSources;
-		ns::AllocPtr					m_instanceAllocator;
-		ns::Array<OptixInstance>		m_instances;
+		//!	@brief	Helper function to convert instance build input to the generic `OptixBuildInput` format.
+		std::vector<OptixBuildInput> & makeBuildInput(OptixBuildInputInstanceArray buildInput)
+		{
+			m_cachedBuildInputs.resize(1);
+			m_cachedBuildInputs[0].type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+			m_cachedBuildInputs[0].instanceArray = buildInput;
+			return m_cachedBuildInputs;
+		}
 	};
 }

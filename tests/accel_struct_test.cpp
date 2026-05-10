@@ -43,23 +43,10 @@ void accel_struct_test()
 	auto instAccelStruct = std::make_unique<pt::InstAccelStruct>(deviceContext);
 	auto accelStructAabb = std::make_unique<pt::AccelStructAabb>(deviceContext);
 	auto accelStructTriangle = std::make_unique<pt::AccelStructTriangle>(deviceContext);
-	pt::AccelBuildOptions accelBuildOptions = {};
-	accelBuildOptions.headerSize = 64;
-	accelBuildOptions.preferFastTrace = true;
-	accelBuildOptions.allowCompaction = true;
-	accelBuildOptions.allowUpdate = true;
 
 	assert(instAccelStruct != nullptr);
 	assert(accelStructAabb != nullptr);
 	assert(accelStructTriangle != nullptr);
-	assert(accelBuildOptions.headerSize == 64);
-	assert(accelBuildOptions.preferFastTrace);
-	assert(accelBuildOptions.allowUpdate);
-	assert(accelBuildOptions.allowCompaction);
-	assert(!pt::AccelBuildOptions{}.allowCompaction);
-	assert(accelStructAabb->headerSize() == 0);
-	assert(accelStructAabb->accelBufferOffset() == 0);
-	assert(accelStructAabb->bufferLayout().headerSize == 0);
 #if OPTIX_VERSION >= 70100
 	auto accelStructCurve = std::make_unique<pt::AccelStructCurve>(deviceContext);
 	assert(accelStructCurve != nullptr);
@@ -68,6 +55,4 @@ void accel_struct_test()
 	auto accelStructSphere = std::make_unique<pt::AccelStructSphere>(deviceContext);
 	assert(accelStructSphere != nullptr);
 #endif
-
-	accelStructAabb->refit(stream);
 }
