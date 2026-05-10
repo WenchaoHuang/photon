@@ -52,7 +52,10 @@ void accel_struct_test()
 	assert(accelStructAabb != nullptr);
 	assert(accelStructTriangle != nullptr);
 	assert(accelBuildOptions.headerSize == 64);
+	assert(accelBuildOptions.preferFastTrace);
+	assert(accelBuildOptions.allowUpdate);
 	assert(accelBuildOptions.allowCompaction);
+	assert(!pt::AccelBuildOptions{}.allowCompaction);
 	assert(accelStructAabb->headerSize() == 0);
 	assert(accelStructAabb->accelBufferOffset() == 0);
 	assert(accelStructAabb->bufferLayout().headerSize == 0);

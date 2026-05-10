@@ -56,6 +56,10 @@ namespace
 				throw std::invalid_argument("Motion options (timeBegin, timeEnd, flags) must remain at default values when numKeys is 0.");
 			}
 		}
+		else if (!(buildOptions.motionOptions.timeBegin < buildOptions.motionOptions.timeEnd))
+		{
+			throw std::invalid_argument("Motion-enabled build options require timeBegin < timeEnd.");
+		}
 	}
 
 	template<typename T>
@@ -80,7 +84,7 @@ namespace
 		}
 	}
 
-	bool isZeroTransform(const OptixInstance & instance)
+	bool isAllZeroTransform(const OptixInstance & instance)
 	{
 		for (float element : instance.transform)
 		{
@@ -168,8 +172,8 @@ namespace
 			if (buildInput.traversableHandle == 0)
 				throw std::invalid_argument("Instance build inputs require valid traversable handles.");
 
-			if (isZeroTransform(buildInput))
-				throw std::invalid_argument("Instance build inputs require a non-zero 3x4 affine transform matrix.");
+			if (isAllZeroTransform(buildInput))
+				throw std::invalid_argument("Instance build inputs require a valid 3x4 affine transform matrix; all-zero transforms are invalid.");
 		}
 	}
 
@@ -244,12 +248,6 @@ namespace
 			throw std::invalid_argument("Instance refit cannot change the number of instances.");
 	}
 
-	void suppressUnusedStreamWarning(ns::Stream & stream)
-	{
-		//	Geometry acceleration structures keep the stream parameter only because
-		//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
-		(void)stream;
-	}
 }
 
 /*********************************************************************************
@@ -272,7 +270,7 @@ void AccelStruct::buildPrepared(ns::Stream & stream, ns::AllocPtr allocator, con
 void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize)
 {
 	OptixAccelBufferSizes accelBufferSizes = {};
-	const size_t requestedHeaderSize = headerSize;	//	User-visible header size before alignment.
+	const size_t requestedHeaderSize = headerSize;	//	Preserve user-visible size before align_up() adjusts the accel-data offset.
 
 	buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
@@ -469,7 +467,9 @@ void AccelStructTriangle::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildIn
 
 void AccelStructTriangle::prepareBuildInputs(ns::Stream & stream)
 {
-	suppressUnusedStreamWarning(stream);
+	//	Geometry acceleration structures keep the stream parameter only because
+	//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
+	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputTriangleArray & source) { buildInput.triangleArray = source; });
 }
@@ -522,7 +522,9 @@ void AccelStructAabb::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputC
 
 void AccelStructAabb::prepareBuildInputs(ns::Stream & stream)
 {
-	suppressUnusedStreamWarning(stream);
+	//	Geometry acceleration structures keep the stream parameter only because
+	//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
+	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCustomPrimitiveArray & source)
 					   {
@@ -583,7 +585,9 @@ void AccelStructCurve::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInput
 
 void AccelStructCurve::prepareBuildInputs(ns::Stream & stream)
 {
-	suppressUnusedStreamWarning(stream);
+	//	Geometry acceleration structures keep the stream parameter only because
+	//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
+	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_CURVES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputCurveArray & source) { buildInput.curveArray = source; });
 }
@@ -639,7 +643,9 @@ void AccelStructSphere::refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInpu
 
 void AccelStructSphere::prepareBuildInputs(ns::Stream & stream)
 {
-	suppressUnusedStreamWarning(stream);
+	//	Geometry acceleration structures keep the stream parameter only because
+	//	the shared prepareBuildInputs() virtual interface also serves IAS uploads.
+	(void)stream;
 	prepareBuildInputs(m_cachedBuildInputs, m_buildSources, OPTIX_BUILD_INPUT_TYPE_SPHERES,
 					   [](OptixBuildInput & buildInput, const OptixBuildInputSphereArray & source) { buildInput.sphereArray = source; });
 }
