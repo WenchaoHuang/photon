@@ -145,8 +145,6 @@ void AccelStruct::rebuild(ns::Stream & stream)
 
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
-		this->makeOptixBuildInputs(m_cachedBuildInputs);
-
 		if (this->allowCompaction())
 		{
 			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
@@ -184,8 +182,6 @@ void AccelStruct::refit(ns::Stream & stream)
 	if (this->allowUpdate() && (m_hTraversable != 0))
 	{
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_UPDATE;
-
-		this->makeOptixBuildInputs(m_cachedBuildInputs);
 
 		if (this->allowCompaction())
 		{
@@ -251,7 +247,13 @@ void AccelStructTriangle::build(ns::Stream & stream, ns::AllocPtr allocator, ns:
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	this->makeOptixBuildInputs(m_cachedBuildInputs);
+	m_cachedBuildInputs.resize(m_buildInputs.size());
+
+	for (size_t i = 0; i < m_buildInputs.size(); i++)
+	{
+		m_cachedBuildInputs[i].type				= OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+		m_cachedBuildInputs[i].triangleArray	= m_buildInputs[i];
+	}
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
@@ -289,7 +291,18 @@ void AccelStructAabb::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	this->makeOptixBuildInputs(m_cachedBuildInputs);
+	m_cachedBuildInputs.resize(m_buildInputs.size());
+
+	for (size_t i = 0; i < m_buildInputs.size(); i++)
+	{
+	#if OPTIX_VERSION >= 70100
+		m_cachedBuildInputs[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+		m_cachedBuildInputs[i].customPrimitiveArray		= m_buildInputs[i];
+	#else
+		m_cachedBuildInputs[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+		m_cachedBuildInputs[i].aabbArray				= m_buildInputs[i];
+	#endif
+	}
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
@@ -328,7 +341,13 @@ void AccelStructCurve::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Ar
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	this->makeOptixBuildInputs(m_cachedBuildInputs);
+	m_cachedBuildInputs.resize(m_buildInputs.size());
+
+	for (size_t i = 0; i < m_buildInputs.size(); i++)
+	{
+		m_cachedBuildInputs[i].type			= OPTIX_BUILD_INPUT_TYPE_CURVES;
+		m_cachedBuildInputs[i].curveArray	= m_buildInputs[i];
+	}
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
@@ -370,7 +389,13 @@ void AccelStructSphere::build(ns::Stream & stream, ns::AllocPtr allocator, ns::A
 	buildOptions.motionOptions.timeEnd			= 0.0f;
 	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
 
-	this->makeOptixBuildInputs(m_cachedBuildInputs);
+	m_cachedBuildInputs.resize(m_buildInputs.size());
+
+	for (size_t i = 0; i < m_buildInputs.size(); i++)
+	{
+		m_cachedBuildInputs[i].type				= OPTIX_BUILD_INPUT_TYPE_SPHERES;
+		m_cachedBuildInputs[i].sphereArray		= m_buildInputs[i];
+	}
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
 }
@@ -411,7 +436,15 @@ void InstAccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, ns::Arr
 	buildOptions.motionOptions.timeEnd					= 0.0f;
 	buildOptions.motionOptions.flags					= OPTIX_MOTION_FLAG_NONE;
 
-	this->makeOptixBuildInputs(m_cachedBuildInputs);
+	m_cachedBuildInputs.resize(1);
+
+	m_cachedBuildInputs[0]												= {};
+	m_cachedBuildInputs[0].type											= OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+	m_cachedBuildInputs[0].instanceArray.instances						= (CUdeviceptr)m_instances.data();
+#if OPTIX_VERSION >= 70600
+	m_cachedBuildInputs[0].instanceArray.instanceStride					= sizeof(OptixInstance);
+#endif
+	m_cachedBuildInputs[0].instanceArray.numInstances					= static_cast<uint32_t>(m_instances.size());
 
 	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
 }

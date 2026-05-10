@@ -111,11 +111,7 @@ namespace PHOTON_NAMESPACE
 
 		size_t										m_headerSize;
 		unsigned int								m_numSbtRecords;
-		mutable std::vector<OptixBuildInput>		m_cachedBuildInputs;
-
-		//	Populates \p out with the OptiX build inputs for the current geometry.
-		//	Called internally by rebuild() and refit().
-		virtual void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const = 0;
+		std::vector<OptixBuildInput>				m_cachedBuildInputs;
 
 	private:
 
@@ -230,19 +226,6 @@ namespace PHOTON_NAMESPACE
 		//	numSbtRecords as required by the OptiX build input contract.
 		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
 
-	protected:
-
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
-		{
-			out.resize(m_buildInputs.size());
-
-			for (size_t i = 0; i < m_buildInputs.size(); i++)
-			{
-				out[i].type				= OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
-				out[i].triangleArray	= m_buildInputs[i];
-			}
-		}
-
 	private:
 
 		std::vector<OptixBuildInputTriangleArray>	m_buildInputs;
@@ -269,24 +252,6 @@ namespace PHOTON_NAMESPACE
 
 		//	Builds the AABB GAS from the supplied build inputs.
 		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-
-	protected:
-
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
-		{
-			out.resize(m_buildInputs.size());
-
-			for (size_t i = 0; i < m_buildInputs.size(); i++)
-			{
-			#if OPTIX_VERSION >= 70100
-				out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-				out[i].customPrimitiveArray		= m_buildInputs[i];
-			#else
-				out[i].type						= OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-				out[i].aabbArray				= m_buildInputs[i];
-			#endif
-			}
-		}
 
 	private:
 
@@ -334,19 +299,6 @@ namespace PHOTON_NAMESPACE
 		//	Builds the curve GAS from the supplied build inputs.
 		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
 
-	protected:
-
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
-		{
-			out.resize(m_buildInputs.size());
-
-			for (size_t i = 0; i < m_buildInputs.size(); i++)
-			{
-				out[i].type			= OPTIX_BUILD_INPUT_TYPE_CURVES;
-				out[i].curveArray	= m_buildInputs[i];
-			}
-		}
-
 	private:
 
 		std::vector<OptixBuildInputCurveArray>	m_buildInputs;
@@ -378,19 +330,6 @@ namespace PHOTON_NAMESPACE
 
 		//	Builds the sphere GAS from the supplied build inputs.
 		PHOTON_API void build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate);
-
-	protected:
-
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
-		{
-			out.resize(m_buildInputs.size());
-
-			for (size_t i = 0; i < m_buildInputs.size(); i++)
-			{
-				out[i].type				= OPTIX_BUILD_INPUT_TYPE_SPHERES;
-				out[i].sphereArray		= m_buildInputs[i];
-			}
-		}
 
 	private:
 
@@ -471,21 +410,6 @@ namespace PHOTON_NAMESPACE
 
 		//	Uploads the current host-side instance data and then refits the IAS.
 		PHOTON_API void refit(ns::Stream & stream) override;
-
-	protected:
-
-		void makeOptixBuildInputs(std::vector<OptixBuildInput> & out) const override
-		{
-			out.resize(1);
-
-			out[0]												= {};
-			out[0].type											= OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-			out[0].instanceArray.instances						= (CUdeviceptr)m_instances.data();
-		#if OPTIX_VERSION >= 70600
-			out[0].instanceArray.instanceStride					= sizeof(OptixInstance);
-		#endif
-			out[0].instanceArray.numInstances					= static_cast<uint32_t>(m_instances.size());
-		}
 
 	private:
 
