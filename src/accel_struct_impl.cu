@@ -20,8 +20,8 @@
  *	SOFTWARE.
  */
 
+#include "accel_struct.h"
 #include "device_context.h"
-#include <photon/accel_struct.h>
 #include <nucleus/launch_utils.cuh>
 #include <optix_stubs.h>
 
@@ -98,8 +98,8 @@ void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::
 		throw err;
 	}
 
-	m_buildOptions = optixBuildOptions;
 	m_headerSize = buildOptions.headerSize;
+	m_buildOptions = optixBuildOptions;
 }
 
 
