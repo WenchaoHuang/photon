@@ -20,15 +20,15 @@
  *	SOFTWARE.
  */
 
+#include "accel_struct.h"
 #include "device_context.h"
-#include <photon/accel_struct.h>
 #include <nucleus/launch_utils.cuh>
 #include <optix_stubs.h>
 
 PHOTON_USING_NAMESPACE
 
 /*********************************************************************************
-********************************    AccelStruct    ********************************
+*******************************    AccelStruct    ********************************
 *********************************************************************************/
 
 AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_deviceContext(deviceContext), m_hTraversable(0), m_headerSize(0)
@@ -37,17 +37,19 @@ AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_devic
 }
 
 
-void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, OptixAccelBuildOptions buildOptions, size_t headerSize)
+void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, BuildOptions buildOptions)
 {
 	OptixAccelBufferSizes accelBufferSizes = {};
+	OptixAccelBuildOptions optixBuildOptions = {};
 
-	buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
+	optixBuildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
+	optixBuildOptions.motionOptions = buildOptions.motionOptions;
 
-	OptixResult err = optixAccelComputeMemoryUsage(m_deviceContext->handle(), &buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(), &accelBufferSizes);
+	OptixResult err = optixAccelComputeMemoryUsage(m_deviceContext->handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(), &accelBufferSizes);
 
 	if (err == OPTIX_SUCCESS)
 	{
-		headerSize = ns::align_up(headerSize, OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT);
+		buildOptions.headerSize = ns::align_up(buildOptions.headerSize, OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT);
 
 		//!	Last aligned 8-bytes for storing compacted size.
 		m_tempBuffer.resize(allocator, ns::align_up(NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes), alignof(uint64_t)) + sizeof(uint64_t));
@@ -61,7 +63,7 @@ void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const s
 			emittedProp.type			= OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
 			emittedProp.result			= CUdeviceptr(m_tempBuffer.data() + m_tempBuffer.size() - sizeof(uint64_t));
 
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
 								  m_outputBuffer.bytes(), &outputHandle, &emittedProp, 1);
 
@@ -72,20 +74,20 @@ void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const s
 				stream.memcpy<uint64_t>(&compactedSize, (const uint64_t*)emittedProp.result, 1).sync();
 
 				//!	First \p headerSize bytes for storing user data.
-				m_compactedBuffer.resize(allocator, headerSize + compactedSize);
+				m_compactedBuffer.resize(allocator, buildOptions.headerSize + compactedSize);
 
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle,
-										CUdeviceptr(m_compactedBuffer.data() + headerSize), m_compactedBuffer.bytes() - headerSize, &m_hTraversable);
+				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + buildOptions.headerSize),
+										m_compactedBuffer.bytes() - buildOptions.headerSize, &m_hTraversable);
 			}
 		}
 		else
 		{
 			//!	First \p headerSize bytes for storing user data.
-			m_outputBuffer.resize(allocator, headerSize + accelBufferSizes.outputSizeInBytes);
+			m_outputBuffer.resize(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
 
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + headerSize),
-								  m_outputBuffer.bytes() - headerSize, &m_hTraversable, nullptr, 0);
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + buildOptions.headerSize),
+								  m_outputBuffer.bytes() - buildOptions.headerSize, &m_hTraversable, nullptr, 0);
 		}
 	}
 
@@ -96,12 +98,12 @@ void AccelStruct::buildBase(ns::Stream & stream, ns::AllocPtr allocator, const s
 		throw err;
 	}
 
-	m_buildOptions = buildOptions;
-	m_headerSize = headerSize;
+	m_headerSize = buildOptions.headerSize;
+	m_buildOptions = optixBuildOptions;
 }
 
 
-void AccelStruct::rebuild(ns::Stream & stream)
+void AccelStruct::rebuild(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs)
 {
 	if (m_hTraversable != 0)
 	{
@@ -113,18 +115,19 @@ void AccelStruct::rebuild(ns::Stream & stream)
 
 		if (this->allowCompaction())
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(), m_outputBuffer.bytes(), &outputHandle, nullptr, 0);
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
+								  m_outputBuffer.bytes(), &outputHandle, nullptr, 0);
 
 			if (err == OPTIX_SUCCESS)
 			{
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle,
-										CUdeviceptr(m_compactedBuffer.data() + m_headerSize), m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable);
+				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
+										m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable);
 			}
 		}
 		else
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
 								  m_outputBuffer.bytes() - m_headerSize, &outputHandle, nullptr, 0);
 
@@ -141,7 +144,7 @@ void AccelStruct::rebuild(ns::Stream & stream)
 }
 
 
-void AccelStruct::refit(ns::Stream & stream)
+void AccelStruct::refit(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs)
 {
 	OptixResult err = OPTIX_SUCCESS;
 
@@ -151,13 +154,13 @@ void AccelStruct::refit(ns::Stream & stream)
 
 		if (this->allowCompaction())
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
 								  m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 		}
 		else
 		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, m_cachedBuildInputs.data(), (uint32_t)m_cachedBuildInputs.size(),
+			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
 								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
 								  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 		}
@@ -173,213 +176,4 @@ void AccelStruct::refit(ns::Stream & stream)
 	{
 		NS_WARNING_LOG("Acceleration structure is non-updatable!");
 	}
-}
-
-
-AccelStruct::~AccelStruct()
-{
-
-}
-
-/*********************************************************************************
-****************************    AccelStructTriangle    ****************************
-*********************************************************************************/
-
-AccelStructTriangle::AccelStructTriangle(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
-{
-
-}
-
-
-void AccelStructTriangle::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
-{
-	m_cachedBuildInputs.resize(buildInputs.size());
-
-	for (size_t i = 0; i < buildInputs.size(); i++)
-	{
-		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
-		m_cachedBuildInputs[i].triangleArray = buildInputs[i];
-	}
-
-	OptixAccelBuildOptions						buildOptions = {};
-	buildOptions.operation						= OPTIX_BUILD_OPERATION_BUILD;
-	buildOptions.buildFlags						= OPTIX_BUILD_FLAG_NONE;
-//	buildOptions.buildFlags						|= OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-	buildOptions.buildFlags						|= preferFastTrace ? OPTIX_BUILD_FLAG_PREFER_FAST_TRACE : OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-	buildOptions.buildFlags						|= allowUpdate ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0;
-	buildOptions.motionOptions.numKeys			= 0;
-	buildOptions.motionOptions.timeBegin		= 0.0f;
-	buildOptions.motionOptions.timeEnd			= 0.0f;
-	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
-
-	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
-}
-
-
-/*********************************************************************************
-******************************    AccelStructAabb    *****************************
-*********************************************************************************/
-
-AccelStructAabb::AccelStructAabb(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
-{
-
-}
-
-
-void AccelStructAabb::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
-{
-	m_cachedBuildInputs.resize(buildInputs.size());
-
-	for (size_t i = 0; i < buildInputs.size(); i++)
-	{
-	#if OPTIX_VERSION >= 70100
-		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-		m_cachedBuildInputs[i].customPrimitiveArray = buildInputs[i];
-	#else
-		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-		m_cachedBuildInputs[i].aabbArray = buildInputs[i];
-	#endif
-	}
-
-	OptixAccelBuildOptions						buildOptions = {};
-	buildOptions.operation						= OPTIX_BUILD_OPERATION_BUILD;
-	buildOptions.buildFlags						= OPTIX_BUILD_FLAG_NONE;
-//	buildOptions.buildFlags						|= OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-	buildOptions.buildFlags						|= preferFastTrace ? OPTIX_BUILD_FLAG_PREFER_FAST_TRACE : OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-	buildOptions.buildFlags						|= allowUpdate ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0;
-	buildOptions.motionOptions.numKeys			= 0;
-	buildOptions.motionOptions.timeBegin		= 0.0f;
-	buildOptions.motionOptions.timeEnd			= 0.0f;
-	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
-
-	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
-}
-
-
-/*********************************************************************************
-*****************************    AccelStructCurve    *****************************
-*********************************************************************************/
-
-#if OPTIX_VERSION >= 70100
-
-AccelStructCurve::AccelStructCurve(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
-{
-
-}
-
-
-void AccelStructCurve::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
-{
-	m_cachedBuildInputs.resize(buildInputs.size());
-
-	for (size_t i = 0; i < buildInputs.size(); i++)
-	{
-		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_CURVES;
-		m_cachedBuildInputs[i].curveArray = buildInputs[i];
-	}
-
-	OptixAccelBuildOptions						buildOptions = {};
-	buildOptions.operation						= OPTIX_BUILD_OPERATION_BUILD;
-	buildOptions.buildFlags						= OPTIX_BUILD_FLAG_NONE;
-//	buildOptions.buildFlags						|= OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-	buildOptions.buildFlags						|= preferFastTrace ? OPTIX_BUILD_FLAG_PREFER_FAST_TRACE : OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-	buildOptions.buildFlags						|= allowUpdate ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0;
-	buildOptions.motionOptions.numKeys			= 0;
-	buildOptions.motionOptions.timeBegin		= 0.0f;
-	buildOptions.motionOptions.timeEnd			= 0.0f;
-	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
-
-	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
-}
-
-#endif	//	OPTIX_VERSION >= 70100
-
-/*********************************************************************************
-****************************    AccelStructSphere    *****************************
-*********************************************************************************/
-
-#if OPTIX_VERSION >= 70500
-
-AccelStructSphere::AccelStructSphere(std::shared_ptr<DeviceContext> deviceContext) : GeomAccelStruct(std::move(deviceContext))
-{
-
-}
-
-
-void AccelStructSphere::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs, size_t headerSize, bool preferFastTrace, bool allowUpdate)
-{
-	m_cachedBuildInputs.resize(buildInputs.size());
-
-	for (size_t i = 0; i < buildInputs.size(); i++)
-	{
-		m_cachedBuildInputs[i].type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
-		m_cachedBuildInputs[i].sphereArray = buildInputs[i];
-	}
-
-	OptixAccelBuildOptions						buildOptions = {};
-	buildOptions.operation						= OPTIX_BUILD_OPERATION_BUILD;
-	buildOptions.buildFlags						= OPTIX_BUILD_FLAG_NONE;
-//	buildOptions.buildFlags						|= OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-	buildOptions.buildFlags						|= preferFastTrace ? OPTIX_BUILD_FLAG_PREFER_FAST_TRACE : OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-	buildOptions.buildFlags						|= allowUpdate ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0;
-	buildOptions.motionOptions.numKeys			= 0;
-	buildOptions.motionOptions.timeBegin		= 0.0f;
-	buildOptions.motionOptions.timeEnd			= 0.0f;
-	buildOptions.motionOptions.flags			= OPTIX_MOTION_FLAG_NONE;
-
-	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, headerSize);
-}
-
-#endif	//	OPTIX_VERSION >= 70500
-
-/*********************************************************************************
-******************************    InstAccelStruct    *****************************
-*********************************************************************************/
-
-InstAccelStruct::InstAccelStruct(std::shared_ptr<DeviceContext> deviceContext) : AccelStruct(std::move(deviceContext))
-{
-
-}
-
-
-void InstAccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, ns::ArrayProxy<OptixInstance> buildInputs, bool preferFastTrace, bool allowUpdate)
-{
-	m_cachedBuildInputs.resize(1);
-	m_instances.resize(allocator, buildInputs.size());
-
-	m_cachedBuildInputs[0] = {};
-	m_cachedBuildInputs[0].type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-	m_cachedBuildInputs[0].instanceArray.instances = (CUdeviceptr)m_instances.data();
-#if OPTIX_VERSION >= 70600
-	m_cachedBuildInputs[0].instanceArray.instanceStride = sizeof(OptixInstance);
-#endif
-	m_cachedBuildInputs[0].instanceArray.numInstances = static_cast<uint32_t>(m_instances.size());
-
-
-	stream.memcpy(m_instances.data(), buildInputs.data(), buildInputs.size());
-
-	OptixAccelBuildOptions								buildOptions = {};
-	buildOptions.operation								= OPTIX_BUILD_OPERATION_BUILD;
-	buildOptions.buildFlags								= OPTIX_BUILD_FLAG_NONE;
-//	buildOptions.buildFlags								|= OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-	buildOptions.buildFlags								|= preferFastTrace ? OPTIX_BUILD_FLAG_PREFER_FAST_TRACE : OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-	buildOptions.buildFlags								|= allowUpdate ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0;
-	buildOptions.motionOptions.numKeys					= 0;
-	buildOptions.motionOptions.timeBegin				= 0.0f;
-	buildOptions.motionOptions.timeEnd					= 0.0f;
-	buildOptions.motionOptions.flags					= OPTIX_MOTION_FLAG_NONE;
-
-	AccelStruct::buildBase(stream, allocator, m_cachedBuildInputs, buildOptions, 0);
-}
-
-
-void InstAccelStruct::rebuild(ns::Stream & stream)
-{
-	AccelStruct::rebuild(stream);
-}
-
-
-void InstAccelStruct::refit(ns::Stream & stream)
-{
-	AccelStruct::refit(stream);
 }

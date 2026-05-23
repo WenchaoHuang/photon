@@ -20,10 +20,10 @@
  *	SOFTWARE.
  */
 
+#include "accel_struct.h"
 #include "pipeline_impl.h"
 #include "denoiser_impl.h"
 #include "device_context.h"
-#include <photon/accel_struct.h>
 
 #include <nucleus/device.h>
 #include <nucleus/logger.h>

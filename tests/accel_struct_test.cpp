@@ -55,6 +55,4 @@ void accel_struct_test()
 	auto accelStructSphere = std::make_unique<pt::AccelStructSphere>(deviceContext);
 	assert(accelStructSphere != nullptr);
 #endif
-
-	accelStructAabb->refit(stream);
 }

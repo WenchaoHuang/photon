@@ -96,15 +96,17 @@ int main()
 	pt::AccelStructAabb accelStruct(deviceContext);
 	CUdeviceptr aabbPtr = (CUdeviceptr)aabbBuffer.data();
 	unsigned int aabbFlags = OPTIX_GEOMETRY_FLAG_NONE;
-	OptixBuildInputCustomPrimitiveArray buildInput = {};
+
+	OptixBuildInputCustomPrimitiveArray		buildInput = {};
 	buildInput.aabbBuffers                  = &aabbPtr;
 	buildInput.numPrimitives                = static_cast<unsigned int>(count);
 	buildInput.numSbtRecords                = 1;
 	buildInput.flags                        = &aabbFlags;
 	buildInput.strideInBytes                = sizeof(pt::Aabb);
-	buildInput.sbtIndexOffsetSizeInBytes    = sizeof(uint32_t);
-	buildInput.sbtIndexOffsetStrideInBytes  = sizeof(uint32_t);
-	accelStruct.build(stream, allocator, buildInput, 200, true, false);
+
+	pt::AccelStruct::BuildOptions buildOptions = { .headerSize = 200 };
+
+	accelStruct.build(stream, allocator, buildInput, buildOptions);
 
 	//	launch parameters
 	LaunchParams hostLaunchParams = {};
