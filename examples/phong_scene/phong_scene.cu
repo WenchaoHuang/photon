@@ -239,17 +239,22 @@ __RT_KERNEL__ void __closesthit__curve()
 
 	//	Approximate normal as perpendicular to the ray direction at the hit point
 	//	For a cylinder-like curve, compute the normal from hit point to curve axis
-	float3 normal = normalize(hitPoint - optixTransformPointFromObjectToWorldSpace(
-		make_float3_v(hitPoint.x, hitPoint.y, hitPoint.z)));
+	float3 normalVec = hitPoint - optixTransformPointFromObjectToWorldSpace(
+		make_float3_v(hitPoint.x, hitPoint.y, hitPoint.z));
+	float3 normal;
 
 	//	Fallback: use ray direction perpendicular
-	if (dot(normal, normal) < 1e-6f)
+	if (dot(normalVec, normalVec) < 1e-6f)
 	{
 		//	Use a simple normal perpendicular to the ray
 		float3 up = make_float3_v(0.0f, 1.0f, 0.0f);
 		if (fabsf(dot(rayDir, up)) > 0.9f)
 			up = make_float3_v(1.0f, 0.0f, 0.0f);
 		normal = normalize(cross(rayDir, up));
+	}
+	else
+	{
+		normal = normalize(normalVec);
 	}
 
 	float3 color = phongShade(hitPoint, normal, data->material);
