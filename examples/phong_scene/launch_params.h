@@ -1,0 +1,87 @@
+/**
+ *	Copyright (c) 2025 Wenchao Huang <physhuangwenchao@gmail.com>
+ *
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	of this software and associated documentation files (the "Software"), to deal
+ *	in the Software without restriction, including without limitation the rights
+ *	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *	copies of the Software, and to permit persons to whom the Software is
+ *	furnished to do so, subject to the following conditions:
+ *
+ *	The above copyright notice and this permission notice shall be included in all
+ *	copies or substantial portions of the Software.
+ *
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *	SOFTWARE.
+ */
+#pragma once
+
+#include <optix.h>
+#include <nucleus/vector_types.h>
+#include <nucleus/device_pointer.h>
+
+/*********************************************************************************
+*****************************    Material Data    ********************************
+*********************************************************************************/
+
+struct Material
+{
+	ns::float3		diffuse;		//	Kd
+	ns::float3		specular;		//	Ks
+	float			shininess;		//	specular exponent
+};
+
+/*********************************************************************************
+*****************************    Launch Params    ********************************
+*********************************************************************************/
+
+struct LaunchParams
+{
+	//	Image output
+	dev::Ptr<ns::float3>				image;
+	unsigned int						width;
+	unsigned int						height;
+
+	//	Camera
+	ns::float3							camPos;
+	ns::float3							camU;			//	camera right
+	ns::float3							camV;			//	camera up
+	ns::float3							camW;			//	camera forward (negative look direction)
+
+	//	Light
+	ns::float3							lightPos;
+	ns::float3							lightColor;
+	ns::float3							ambientColor;
+
+	//	Scene traversable (IAS)
+	OptixTraversableHandle				traversable;
+};
+
+/*********************************************************************************
+****************************    HitGroup SBT Data    *****************************
+*********************************************************************************/
+
+struct HitGroupData
+{
+	Material							material;
+
+	//	For triangle geometry: vertex buffer for computing normals
+	dev::Ptr<const ns::float3>			vertices;
+	dev::Ptr<const unsigned int>		indices;
+
+	//	For sphere geometry: center + radius arrays
+	dev::Ptr<const ns::float3>			sphereCenters;
+	dev::Ptr<const float>				sphereRadii;
+
+	//	For curve geometry: control point buffer
+	dev::Ptr<const ns::float4>			curveControlPoints;
+
+	//	For AABB geometry: center positions (custom primitive)
+	dev::Ptr<const ns::float3>			aabbCenters;
+	float								aabbRadius;
+};

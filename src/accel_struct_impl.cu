@@ -42,6 +42,7 @@ void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::
 	OptixAccelBufferSizes accelBufferSizes = {};
 	OptixAccelBuildOptions optixBuildOptions = {};
 
+	optixBuildOptions.buildFlags = buildOptions.buildFlags;
 	optixBuildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 	optixBuildOptions.motionOptions = buildOptions.motionOptions;
 
