@@ -75,6 +75,9 @@ target_link_libraries(${OBJECT_NAME} PRIVATE photon)
 # Make the generated header directory available for #include
 target_include_directories(${TARGET_NAME} PRIVATE ${GENERATED_HEADERS_DIR})
 
+# Make the source directory available for #include (if needed)
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
 if(MSVC)
     # MSVC-specific compiler flags
     target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/MP /W3 /WX /utf-8>)

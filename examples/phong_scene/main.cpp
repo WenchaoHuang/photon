@@ -36,15 +36,29 @@
 #include <photon/device_context.h>
 #include <photon/sbt_record.h>
 
-#include "phong_scene.optixir.h"
 #include "launch_params.h"
+#include "phong_scene.optixir.h"
 
-/*********************************************************************************
-*******************************    Constants    **********************************
-*********************************************************************************/
+#ifdef _MSC_VER
+#define EZWIN32_IMPLEMENTATION
+	#include "easywin32.h"
+#endif
 
-static constexpr unsigned int IMAGE_WIDTH  = 800;
+ /*********************************************************************************
+ *******************************    Constants    **********************************
+ *********************************************************************************/
+
+static constexpr unsigned int IMAGE_WIDTH = 800;
 static constexpr unsigned int IMAGE_HEIGHT = 600;
+
+static inline unsigned char toDisplayByte(float value)
+{
+	value = std::fmax(value, 0.0f);
+	value = value / (1.0f + value);
+	value = std::pow(value, 1.0f / 2.2f);
+	value = std::fmin(value, 1.0f);
+	return static_cast<unsigned char>(value * 255.0f);
+}
 
 /*********************************************************************************
 ***************************    Host Vector Math    ********************************
@@ -52,7 +66,6 @@ static constexpr unsigned int IMAGE_HEIGHT = 600;
 
 static inline ns::float3 make_f3(float x, float y, float z) { return ns::float3{ x, y, z }; }
 static inline ns::float4 make_f4(float x, float y, float z, float w) { return ns::float4{ x, y, z, w }; }
-
 static inline ns::float3 operator-(ns::float3 a, ns::float3 b) { return { a.x - b.x, a.y - b.y, a.z - b.z }; }
 
 static inline ns::float3 cross(ns::float3 a, ns::float3 b)
@@ -73,12 +86,10 @@ static inline ns::float3 normalize(ns::float3 v)
 *********************************************************************************/
 
 //	Creates a ground plane (two triangles forming a quad)
-static void buildTriangleGAS(
-	pt::AccelStructTriangle & accelStruct,
-	ns::Stream & stream,
-	ns::AllocPtr allocator,
-	ns::Array<ns::float3> & vertexBuffer,
-	ns::Array<unsigned int> & indexBuffer)
+static void buildTriangleGAS(pt::AccelStructTriangle & accelStruct,
+							 ns::Stream & stream, ns::AllocPtr allocator,
+							 ns::Array<ns::float3> & vertexBuffer,
+							 ns::Array<unsigned int> & indexBuffer)
 {
 	//	Ground plane vertices
 	std::vector<ns::float3> vertices = {
@@ -102,16 +113,16 @@ static void buildTriangleGAS(
 	unsigned int flags = OPTIX_GEOMETRY_FLAG_NONE;
 
 	OptixBuildInputTriangleArray buildInput = {};
-	buildInput.vertexFormat			= OPTIX_VERTEX_FORMAT_FLOAT3;
-	buildInput.vertexStrideInBytes	= sizeof(ns::float3);
-	buildInput.numVertices			= static_cast<unsigned int>(vertices.size());
-	buildInput.vertexBuffers		= &vertexPtr;
-	buildInput.indexFormat			= OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
-	buildInput.indexStrideInBytes	= 3 * sizeof(unsigned int);
-	buildInput.numIndexTriplets		= static_cast<unsigned int>(indices.size() / 3);
-	buildInput.indexBuffer			= (CUdeviceptr)indexBuffer.data();
-	buildInput.flags				= &flags;
-	buildInput.numSbtRecords		= 1;
+	buildInput.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+	buildInput.vertexStrideInBytes = sizeof(ns::float3);
+	buildInput.numVertices = static_cast<unsigned int>(vertices.size());
+	buildInput.vertexBuffers = &vertexPtr;
+	buildInput.indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
+	buildInput.indexStrideInBytes = 3 * sizeof(unsigned int);
+	buildInput.numIndexTriplets = static_cast<unsigned int>(indices.size() / 3);
+	buildInput.indexBuffer = (CUdeviceptr)indexBuffer.data();
+	buildInput.flags = &flags;
+	buildInput.numSbtRecords = 1;
 
 	pt::AccelStruct::BuildOptions buildOptions = {};
 
@@ -122,12 +133,9 @@ static void buildTriangleGAS(
 *************************    Helper: Build Spheres    *****************************
 *********************************************************************************/
 
-static void buildSphereGAS(
-	pt::AccelStructSphere & accelStruct,
-	ns::Stream & stream,
-	ns::AllocPtr allocator,
-	ns::Array<ns::float3> & centerBuffer,
-	ns::Array<float> & radiusBuffer)
+static void buildSphereGAS(pt::AccelStructSphere & accelStruct,
+						   ns::Stream & stream, ns::AllocPtr allocator,
+						   ns::Array<ns::float3> & centerBuffer, ns::Array<float> & radiusBuffer)
 {
 	//	Sphere positions
 	std::vector<ns::float3> centers = {
@@ -148,13 +156,13 @@ static void buildSphereGAS(
 	unsigned int flags = OPTIX_GEOMETRY_FLAG_NONE;
 
 	OptixBuildInputSphereArray buildInput = {};
-	buildInput.vertexBuffers		= &centerPtr;
-	buildInput.radiusBuffers		= &radiusPtr;
-	buildInput.numVertices			= static_cast<unsigned int>(centers.size());
-	buildInput.vertexStrideInBytes	= sizeof(ns::float3);
-	buildInput.radiusStrideInBytes	= sizeof(float);
-	buildInput.flags				= &flags;
-	buildInput.numSbtRecords		= 1;
+	buildInput.vertexBuffers = &centerPtr;
+	buildInput.radiusBuffers = &radiusPtr;
+	buildInput.numVertices = static_cast<unsigned int>(centers.size());
+	buildInput.vertexStrideInBytes = sizeof(ns::float3);
+	buildInput.radiusStrideInBytes = sizeof(float);
+	buildInput.flags = &flags;
+	buildInput.numSbtRecords = 1;
 
 	pt::AccelStruct::BuildOptions buildOptions = {};
 
@@ -165,13 +173,11 @@ static void buildSphereGAS(
 *************************    Helper: Build Curves    ******************************
 *********************************************************************************/
 
-static void buildCurveGAS(
-	pt::AccelStructCurve & accelStruct,
-	ns::Stream & stream,
-	ns::AllocPtr allocator,
-	ns::Array<ns::float4> & controlPointBuffer,
-	ns::Array<float> & curveWidthBuffer,
-	ns::Array<unsigned int> & curveIndexBuffer)
+static void buildCurveGAS(pt::AccelStructCurve & accelStruct,
+						  ns::Stream & stream, ns::AllocPtr allocator,
+						  ns::Array<ns::float4> & controlPointBuffer,
+						  ns::Array<float> & curveWidthBuffer,
+						  ns::Array<unsigned int> & curveIndexBuffer)
 {
 	//	Quadratic B-spline curve: 4 control points (x, y, z, width)
 	std::vector<ns::float4> controlPoints = {
@@ -202,18 +208,18 @@ static void buildCurveGAS(
 	unsigned int flags = OPTIX_GEOMETRY_FLAG_NONE;
 
 	OptixBuildInputCurveArray buildInput = {};
-	buildInput.curveType			= OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE;
-	buildInput.numPrimitives		= static_cast<unsigned int>(segmentIndices.size());
-	buildInput.vertexBuffers		= &controlPointPtr;
-	buildInput.numVertices			= static_cast<unsigned int>(controlPoints.size());
-	buildInput.vertexStrideInBytes	= sizeof(ns::float4);
-	buildInput.widthBuffers			= &widthPtr;
-	buildInput.widthStrideInBytes	= sizeof(float);
-	buildInput.indexBuffer			= (CUdeviceptr)curveIndexBuffer.data();
-	buildInput.indexStrideInBytes	= sizeof(unsigned int);
-	buildInput.flag					= flags;
-	buildInput.primitiveIndexOffset	= 0;
-	buildInput.endcapFlags			= OPTIX_CURVE_ENDCAP_DEFAULT;
+	buildInput.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE;
+	buildInput.numPrimitives = static_cast<unsigned int>(segmentIndices.size());
+	buildInput.vertexBuffers = &controlPointPtr;
+	buildInput.numVertices = static_cast<unsigned int>(controlPoints.size());
+	buildInput.vertexStrideInBytes = sizeof(ns::float4);
+	buildInput.widthBuffers = &widthPtr;
+	buildInput.widthStrideInBytes = sizeof(float);
+	buildInput.indexBuffer = (CUdeviceptr)curveIndexBuffer.data();
+	buildInput.indexStrideInBytes = sizeof(unsigned int);
+	buildInput.flag = flags;
+	buildInput.primitiveIndexOffset = 0;
+	buildInput.endcapFlags = OPTIX_CURVE_ENDCAP_DEFAULT;
 
 	pt::AccelStruct::BuildOptions buildOptions = {};
 
@@ -224,13 +230,11 @@ static void buildCurveGAS(
 **************************    Helper: Build AABBs    ******************************
 *********************************************************************************/
 
-static void buildAabbGAS(
-	pt::AccelStructAabb & accelStruct,
-	ns::Stream & stream,
-	ns::AllocPtr allocator,
-	ns::Array<pt::Aabb> & aabbBuffer,
-	ns::Array<ns::float3> & aabbCenterBuffer,
-	float & outRadius)
+static void buildAabbGAS(pt::AccelStructAabb & accelStruct,
+						 ns::Stream & stream, ns::AllocPtr allocator,
+						 ns::Array<pt::Aabb> & aabbBuffer,
+						 ns::Array<ns::float3> & aabbCenterBuffer,
+						 float & outRadius)
 {
 	//	Custom spheres represented as AABBs
 	float radius = 0.4f;
@@ -262,11 +266,11 @@ static void buildAabbGAS(
 	unsigned int flags = OPTIX_GEOMETRY_FLAG_NONE;
 
 	OptixBuildInputCustomPrimitiveArray buildInput = {};
-	buildInput.aabbBuffers		= &aabbPtr;
-	buildInput.numPrimitives	= static_cast<unsigned int>(aabbs.size());
-	buildInput.strideInBytes	= sizeof(pt::Aabb);
-	buildInput.flags			= &flags;
-	buildInput.numSbtRecords	= 1;
+	buildInput.aabbBuffers = &aabbPtr;
+	buildInput.numPrimitives = static_cast<unsigned int>(aabbs.size());
+	buildInput.strideInBytes = sizeof(pt::Aabb);
+	buildInput.flags = &flags;
+	buildInput.numSbtRecords = 1;
 
 	pt::AccelStruct::BuildOptions buildOptions = {};
 
@@ -280,6 +284,7 @@ static void buildAabbGAS(
 static void writePPM(const char * filename, const ns::float3 * image, unsigned int width, unsigned int height)
 {
 	FILE * fp = nullptr;
+
 	if (fopen_s(&fp, filename, "wb") != 0)
 	{
 		fp = nullptr;
@@ -309,6 +314,69 @@ static void writePPM(const char * filename, const ns::float3 * image, unsigned i
 	fclose(fp);
 	printf("Image written to: %s\n", filename);
 }
+
+#ifdef _MSC_VER
+
+static std::vector<EzColorRGB> makePreviewImage(const ns::float3 * image, unsigned int width, unsigned int height)
+{
+	std::vector<EzColorRGB> preview(width * height);
+
+	for (unsigned int y = 0; y < height; y++)
+	{
+		for (unsigned int x = 0; x < width; x++)
+		{
+			const ns::float3 c = image[(height - 1 - y) * width + x];
+			preview[y * width + x] = EzColorRGB{
+				toDisplayByte(c.x),
+				toDisplayByte(c.y),
+				toDisplayByte(c.z)
+			};
+		}
+	}
+
+	return preview;
+}
+
+
+static void showImageWindow(const EzColorRGB * image, unsigned int width, unsigned int height)
+{
+	EzWindow window;
+	window.open("phong_scene", static_cast<int>(width), static_cast<int>(height));
+	window.centerToScreen();
+	window.show();
+	window.setFocus();
+
+	window.onPaint = [&]()
+	{
+		window.drawBitmap(image, static_cast<int>(width), static_cast<int>(height));
+		return 0;
+	};
+
+	window.onClose = [&]()
+	{
+		window.close();
+		return 0;
+	};
+
+	window.onKeyboardPress = [&](EzKey key, EzKeyAction action)
+	{
+		if ((key == EzKey::Escape) && (action == EzKeyAction::Press))
+		{
+			window.close();
+			return 0;
+		}
+
+		return 0;
+	};
+
+	window.requestRedraw();
+
+	while (window.isOpen())
+	{
+		window.waitEvent();
+	}
+}
+#endif
 
 /*********************************************************************************
 ***********************************    main    ***********************************
@@ -341,8 +409,8 @@ int main()
 	auto module = deviceContext->createModule(phong_scene_optixir, pipelineCompileOptions, moduleCompileOptions);
 
 	//	Programs
-	auto progRaygen		= pt::Program::raygen(module->entry("__raygen__"));
-	auto progMiss		= pt::Program::miss(module->entry("__miss__"));
+	auto progRaygen = pt::Program::raygen(module->entry("__raygen__"));
+	auto progMiss = pt::Program::miss(module->entry("__miss__"));
 
 	//	Hitgroup for triangles (built-in intersection)
 	auto progHitTriangle = pt::Program::hitgroup({}, module->entry("__closesthit__triangle"), {});
@@ -366,8 +434,8 @@ int main()
 		{});
 
 	pt::Pipeline pipeline(deviceContext,
-		{ progRaygen, progMiss, progHitTriangle, progHitSphere, progHitCurve, progHitAabb },
-		pipelineCompileOptions);
+						  { progRaygen, progMiss, progHitTriangle, progHitSphere, progHitCurve, progHitAabb },
+						  pipelineCompileOptions);
 
 	//	========================================================================
 	//	Build Geometry Acceleration Structures (GAS)
@@ -404,7 +472,8 @@ int main()
 	//	========================================================================
 
 	//	Define instance transforms (identity for simplicity)
-	auto makeIdentityTransform = []() {
+	auto makeIdentityTransform = []()
+	{
 		float transform[12] = {
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
@@ -457,10 +526,10 @@ int main()
 	//	========================================================================
 
 	//	Materials
-	Material matGround  = { { 0.3f, 0.6f, 0.3f }, { 0.2f, 0.2f, 0.2f }, 16.0f };
-	Material matSphere  = { { 0.8f, 0.2f, 0.2f }, { 1.0f, 1.0f, 1.0f }, 64.0f };
-	Material matCurve   = { { 0.2f, 0.2f, 0.8f }, { 0.5f, 0.5f, 0.5f }, 32.0f };
-	Material matAabb    = { { 0.8f, 0.6f, 0.1f }, { 1.0f, 1.0f, 1.0f }, 48.0f };
+	Material matGround = { { 0.3f, 0.6f, 0.3f }, { 0.2f, 0.2f, 0.2f }, 16.0f };
+	Material matSphere = { { 0.8f, 0.2f, 0.2f }, { 1.0f, 1.0f, 1.0f }, 64.0f };
+	Material matCurve = { { 0.2f, 0.2f, 0.8f }, { 0.5f, 0.5f, 0.5f }, 32.0f };
+	Material matAabb = { { 0.8f, 0.6f, 0.1f }, { 1.0f, 1.0f, 1.0f }, 48.0f };
 
 	//	HitGroup SBT data
 	HitGroupData hitDataTriangle = {};
@@ -506,26 +575,26 @@ int main()
 
 	//	Fill SBT struct
 	OptixShaderBindingTable sbt = {};
-	sbt.raygenRecord				= (CUdeviceptr)devRaygenRecord.data();
-	sbt.missRecordBase				= (CUdeviceptr)devMissRecord.data();
-	sbt.missRecordStrideInBytes		= sizeof(pt::SbtRecord<>);
-	sbt.missRecordCount				= 1;
-	sbt.hitgroupRecordBase			= (CUdeviceptr)devHitRecords.data();
-	sbt.hitgroupRecordStrideInBytes	= sizeof(pt::SbtRecord<HitGroupData>);
-	sbt.hitgroupRecordCount			= 4;
+	sbt.raygenRecord = (CUdeviceptr)devRaygenRecord.data();
+	sbt.missRecordBase = (CUdeviceptr)devMissRecord.data();
+	sbt.missRecordStrideInBytes = sizeof(pt::SbtRecord<>);
+	sbt.missRecordCount = 1;
+	sbt.hitgroupRecordBase = (CUdeviceptr)devHitRecords.data();
+	sbt.hitgroupRecordStrideInBytes = sizeof(pt::SbtRecord<HitGroupData>);
+	sbt.hitgroupRecordCount = 4;
 
 	//	========================================================================
 	//	Launch parameters
 	//	========================================================================
 
 	LaunchParams hostParams = {};
-	hostParams.width		= IMAGE_WIDTH;
-	hostParams.height		= IMAGE_HEIGHT;
+	hostParams.width = IMAGE_WIDTH;
+	hostParams.height = IMAGE_HEIGHT;
 
 	//	Camera setup (look at origin from slightly above)
-	hostParams.camPos		= { 0.0f, 2.0f, 8.0f };
-	ns::float3 lookAt		= { 0.0f, 0.0f, 0.0f };
-	ns::float3 up			= { 0.0f, 1.0f, 0.0f };
+	hostParams.camPos = { 0.0f, 2.0f, 8.0f };
+	ns::float3 lookAt = { 0.0f, 0.0f, 0.0f };
+	ns::float3 up = { 0.0f, 1.0f, 0.0f };
 	ns::float3 w = normalize(hostParams.camPos - lookAt);	//	camera forward (away from scene)
 	ns::float3 u = normalize(cross(up, w));					//	camera right
 	ns::float3 v = cross(w, u);								//	camera up
@@ -540,9 +609,9 @@ int main()
 	hostParams.camW = { -w.x, -w.y, -w.z };
 
 	//	Light
-	hostParams.lightPos		= { 5.0f, 10.0f, 5.0f };
-	hostParams.lightColor	= { 1.0f, 1.0f, 0.95f };
-	hostParams.ambientColor	= { 0.1f, 0.1f, 0.15f };
+	hostParams.lightPos = { 5.0f, 10.0f, 5.0f };
+	hostParams.lightColor = { 1.0f, 1.0f, 0.95f };
+	hostParams.ambientColor = { 0.1f, 0.1f, 0.15f };
 
 	//	Scene traversable
 	hostParams.traversable = ias.handle();
@@ -569,7 +638,12 @@ int main()
 	std::vector<ns::float3> hostImage(IMAGE_WIDTH * IMAGE_HEIGHT);
 	stream.memcpy(hostImage.data(), devImage.data(), devImage.size()).sync();
 
+#ifdef _MSC_VER
+	auto previewImage = makePreviewImage(hostImage.data(), IMAGE_WIDTH, IMAGE_HEIGHT);
+	showImageWindow(previewImage.data(), IMAGE_WIDTH, IMAGE_HEIGHT);
+#else
 	writePPM("phong_scene.ppm", hostImage.data(), IMAGE_WIDTH, IMAGE_HEIGHT);
+#endif
 
 	printf("\nPhong scene rendered successfully!\n");
 	printf("Scene contains:\n");

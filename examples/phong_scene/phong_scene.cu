@@ -155,7 +155,7 @@ __RT_KERNEL__ void __miss__()
 	//	Background gradient (sky color)
 	float3 rayDir = optixGetWorldRayDirection();
 	float t = 0.5f * (rayDir.y + 1.0f);
-	float3 bgColor = (1.0f - t) * float3{ 1.0f, 1.0f, 1.0f } + t * float3{ 0.5f, 0.7f, 1.0f };
+	float3 bgColor = (1.0f - t) * float3{ 0.96f, 0.93f, 0.90f } + t * float3{ 0.50f, 0.68f, 0.95f };
 
 	pt::set_payload<float3, 0, 1, 2>(bgColor);
 }

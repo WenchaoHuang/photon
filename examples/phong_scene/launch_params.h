@@ -59,7 +59,7 @@ struct LaunchParams
 	ns::float3							ambientColor;
 
 	//	Scene traversable (IAS)
-	OptixTraversableHandle			traversable;
+	OptixTraversableHandle				traversable;
 };
 
 /*********************************************************************************
