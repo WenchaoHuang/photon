@@ -285,10 +285,14 @@ static void writePPM(const char * filename, const ns::float3 * image, unsigned i
 {
 	FILE * fp = nullptr;
 
+#ifdef _MSC_VER
 	if (fopen_s(&fp, filename, "wb") != 0)
 	{
 		fp = nullptr;
 	}
+#else
+	fp = fopen(filename, "wb");
+#endif
 	if (!fp)
 	{
 		printf("Error: cannot open %s for writing.\n", filename);
