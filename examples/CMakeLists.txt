@@ -22,3 +22,4 @@ cmake_minimum_required(VERSION 3.18)
 
 # Add samples
 add_subdirectory(collision_detection)
+add_subdirectory(phong_scene)
