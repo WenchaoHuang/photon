@@ -1533,7 +1533,7 @@ template<bool SkipCaption> void easywin32::Window::internalOpen(string_type titl
 								  this /* Additional application data */);
 
 		//! Keep in sync with the `m_opacity`.
-		if (dwExStyle | WS_EX_LAYERED)
+		if ((dwExStyle & WS_EX_LAYERED) == WS_EX_LAYERED)
 		{
 			this->setOpacity(m_opacity);
 		}
