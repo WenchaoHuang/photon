@@ -173,13 +173,13 @@ namespace PHOTON_NAMESPACE
 		//!	@brief	Rebuilds the triangle GAS from the supplied build inputs.
 		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs = {})
 		{
-			AccelStruct::rebuild(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::rebuild(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 		//!	@brief	Refits the triangle GAS from the supplied build inputs.
 		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputTriangleArray> buildInputs = {})
 		{
-			AccelStruct::refit(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::refit(stream, buildInputs.empty() ? m_cachedBuildInputs: this->makeBuildInput(buildInputs));
 		}
 
 	private:
@@ -220,13 +220,13 @@ namespace PHOTON_NAMESPACE
 		//!	@brief	Rebuilds the AABB GAS from the supplied build inputs.
 		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs = {})
 		{
-			AccelStruct::rebuild(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::rebuild(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 		//!	@brief	Refits the AABB GAS from the supplied build inputs.
 		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCustomPrimitiveArray> buildInputs = {})
 		{
-			AccelStruct::refit(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::refit(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 	private:
@@ -275,13 +275,13 @@ namespace PHOTON_NAMESPACE
 		//!	@brief	Rebuilds the curve GAS from the supplied build inputs.
 		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs = {})
 		{
-			AccelStruct::rebuild(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::rebuild(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 		//!	@brief	Refits the curve GAS from the supplied build inputs.
 		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputCurveArray> buildInputs = {})
 		{
-			AccelStruct::refit(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::refit(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 	private:
@@ -327,13 +327,13 @@ namespace PHOTON_NAMESPACE
 		//!	@brief	Rebuilds the sphere GAS from the supplied build inputs.
 		void rebuild(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs = {})
 		{
-			AccelStruct::rebuild(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::rebuild(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 		//!	@brief	Refits the sphere GAS from the supplied build inputs.
 		void refit(ns::Stream & stream, ns::ArrayProxy<OptixBuildInputSphereArray> buildInputs = {})
 		{
-			AccelStruct::refit(stream, buildInputs.empty() ? this->makeBuildInput(buildInputs) : m_cachedBuildInputs);
+			AccelStruct::refit(stream, buildInputs.empty() ? m_cachedBuildInputs : this->makeBuildInput(buildInputs));
 		}
 
 	private:
