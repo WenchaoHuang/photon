@@ -41,11 +41,11 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
+		OptixModule handle() const { return m_hModule; }
+
 		virtual ProgramEntry entry(const std::string & funcName) override;
 
 		std::shared_ptr<DeviceContext> deviceContext() const { return m_deviceContext; }
-
-		OptixModule handle() const { return m_hModule; }
 
 	private:
 
@@ -53,9 +53,8 @@ namespace PHOTON_NAMESPACE
 
 	private:
 
-		const std::shared_ptr<DeviceContext>					m_deviceContext;
-
-		const OptixModule										m_hModule;
+		const std::shared_ptr<DeviceContext>		m_deviceContext;
+		const OptixModule							m_hModule;
 	};
 
 	/*****************************************************************************
@@ -81,9 +80,9 @@ namespace PHOTON_NAMESPACE
 
 	private:
 
-		const OptixProgramGroup								m_hProgramGroup;
-		const std::shared_ptr<DeviceContext>				m_deviceContext;
-		const Program::Type									m_progType;
-		SbtHeader											m_header;
+		const OptixProgramGroup						m_hProgramGroup;
+		const std::shared_ptr<DeviceContext>		m_deviceContext;
+		const Program::Type							m_progType;
+		SbtHeader									m_header;
 	};
 }

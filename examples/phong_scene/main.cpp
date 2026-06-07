@@ -417,25 +417,22 @@ int main()
 	auto progMiss = pt::Program::miss(module->entry("__miss__"));
 
 	//	Hitgroup for triangles (built-in intersection)
-	auto progHitTriangle = pt::Program::hitgroup({}, module->entry("__closesthit__triangle"), {});
+	auto progHitTriangle = pt::Program::hitgroup({}, {}, module->entry("__closesthit__triangle"));
 
 	//	Hitgroup for spheres (built-in intersection)
 	OptixBuiltinISOptions sphereISOptions = {};
 	sphereISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
 	auto sphereIS = deviceContext->getBuiltinISEntry(sphereISOptions, pipelineCompileOptions);
-	auto progHitSphere = pt::Program::hitgroup(sphereIS, module->entry("__closesthit__sphere"), {});
+	auto progHitSphere = pt::Program::hitgroup(sphereIS, {}, module->entry("__closesthit__sphere"));
 
 	//	Hitgroup for curves (built-in intersection)
 	OptixBuiltinISOptions curveISOptions = {};
 	curveISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE;
 	auto curveIS = deviceContext->getBuiltinISEntry(curveISOptions, pipelineCompileOptions);
-	auto progHitCurve = pt::Program::hitgroup(curveIS, module->entry("__closesthit__curve"), {});
+	auto progHitCurve = pt::Program::hitgroup(curveIS, {}, module->entry("__closesthit__curve"));
 
 	//	Hitgroup for AABB custom primitives (custom intersection)
-	auto progHitAabb = pt::Program::hitgroup(
-		module->entry("__intersection__aabb"),
-		module->entry("__closesthit__aabb"),
-		{});
+	auto progHitAabb = pt::Program::hitgroup(module->entry("__intersection__aabb"), {}, module->entry("__closesthit__aabb"));
 
 	pt::Pipeline pipeline(deviceContext,
 						  { progRaygen, progMiss, progHitTriangle, progHitSphere, progHitCurve, progHitAabb },

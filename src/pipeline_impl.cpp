@@ -126,9 +126,9 @@ std::shared_ptr<Program> Program::raygen(const ProgramEntry & entry)
 
 	OptixProgramGroupDesc desc = {};
 	desc.raygen.module = moduleImpl->handle();
+	desc.raygen.entryFunctionName = entry.m_entryName.c_str();
 	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
 	desc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-	desc.raygen.entryFunctionName = entry.m_entryName.c_str();
 
 	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
 
@@ -143,16 +143,16 @@ std::shared_ptr<Program> Program::raygen(const ProgramEntry & entry)
 }
 
 
-std::shared_ptr<Program> Program::miss(const ProgramEntry & entry)
+std::shared_ptr<Program> Program::miss(const ProgramEntry & ms)
 {
-	if (!entry.valid() || entry.m_type != Miss)
+	if (!ms.valid() || ms.m_type != Miss)
 	{
 		NS_ERROR_LOG("Invalid miss entry!");
 
 		return nullptr;
 	}
 
-	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(entry.m_module);
+	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(ms.m_module);
 
 	if (!moduleImpl)
 	{
@@ -167,9 +167,9 @@ std::shared_ptr<Program> Program::miss(const ProgramEntry & entry)
 
 	OptixProgramGroupDesc desc = {};
 	desc.miss.module = moduleImpl->handle();
-	desc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
+	desc.miss.entryFunctionName = ms.m_entryName.c_str();
 	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
-	desc.miss.entryFunctionName = entry.m_entryName.c_str();
+	desc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
 
 	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
 
@@ -184,16 +184,16 @@ std::shared_ptr<Program> Program::miss(const ProgramEntry & entry)
 }
 
 
-std::shared_ptr<Program> Program::exception(const ProgramEntry & entry)
+std::shared_ptr<Program> Program::exception(const ProgramEntry & ex)
 {
-	if (!entry.valid() || entry.m_type != Exception)
+	if (!ex.valid() || ex.m_type != Exception)
 	{
 		NS_ERROR_LOG("Invalid exception entry!");
 
 		return nullptr;
 	}
 
-	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(entry.m_module);
+	auto moduleImpl = std::dynamic_pointer_cast<ModuleImpl>(ex.m_module);
 
 	if (!moduleImpl)
 	{
@@ -208,9 +208,9 @@ std::shared_ptr<Program> Program::exception(const ProgramEntry & entry)
 
 	OptixProgramGroupDesc desc = {};
 	desc.exception.module = moduleImpl->handle();
-	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
+	desc.exception.entryFunctionName = ex.m_entryName.c_str();
 	desc.kind = OPTIX_PROGRAM_GROUP_KIND_EXCEPTION;
-	desc.exception.entryFunctionName = entry.m_entryName.c_str();
+	desc.flags = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
 
 	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
 
@@ -274,14 +274,14 @@ std::shared_ptr<Program> Program::callables(const ProgramEntry & dc, const Progr
 
 	if (dc.valid())
 	{
-		desc.callables.moduleDC = std::dynamic_pointer_cast<ModuleImpl>(dc.m_module)->handle();
-		desc.callables.entryFunctionNameDC = dc.m_entryName.c_str();
+		desc.callables.moduleDC					= std::dynamic_pointer_cast<ModuleImpl>(dc.m_module)->handle();
+		desc.callables.entryFunctionNameDC		= dc.m_entryName.c_str();
 	}
 
 	if (cc.valid())
 	{
-		desc.callables.moduleCC = std::dynamic_pointer_cast<ModuleImpl>(cc.m_module)->handle();
-		desc.callables.entryFunctionNameCC = cc.m_entryName.c_str();
+		desc.callables.moduleCC					= std::dynamic_pointer_cast<ModuleImpl>(cc.m_module)->handle();
+		desc.callables.entryFunctionNameCC		= cc.m_entryName.c_str();
 	}
 
 	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
@@ -297,9 +297,9 @@ std::shared_ptr<Program> Program::callables(const ProgramEntry & dc, const Progr
 }
 
 
-std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const ProgramEntry & ch, const ProgramEntry & ah)
+std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const ProgramEntry & ah, const ProgramEntry & ch)
 {
-	if (!is.valid() && !ch.valid() && !ah.valid())
+	if (!is.valid() && !ah.valid() && !ch.valid())
 	{
 		NS_ERROR_LOG("At least one hitgroup entry must be valid!");
 
@@ -311,15 +311,15 @@ std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const Progra
 
 		return nullptr;
 	}
-	else if (ch.valid() && ch.m_type != ClosestHit)
-	{
-		NS_ERROR_LOG("Invalid closest hit entry!");
-
-		return nullptr;
-	}
 	else if (ah.valid() && ah.m_type != AnyHit)
 	{
 		NS_ERROR_LOG("Invalid any hit entry!");
+
+		return nullptr;
+	}
+	else if (ch.valid() && ch.m_type != ClosestHit)
+	{
+		NS_ERROR_LOG("Invalid closest hit entry!");
 
 		return nullptr;
 	}
@@ -327,7 +327,7 @@ std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const Progra
 	// Find context from any valid entry
 	std::shared_ptr<DeviceContext> context;
 
-	for (auto & e : { is, ch, ah })
+	for (auto & e : { is, ah, ch })
 	{
 		if (auto m = std::dynamic_pointer_cast<ModuleImpl>(e.m_module))
 		{
@@ -353,20 +353,20 @@ std::shared_ptr<Program> Program::hitgroup(const ProgramEntry & is, const Progra
 
 	if (is.valid())
 	{
-		desc.hitgroup.moduleIS = std::dynamic_pointer_cast<ModuleImpl>(is.m_module)->handle();
-		desc.hitgroup.entryFunctionNameIS = (is.type() == Program::BuiltinIntersection) ? nullptr : is.m_entryName.c_str();
-	}
-
-	if (ch.valid())
-	{
-		desc.hitgroup.moduleCH = std::dynamic_pointer_cast<ModuleImpl>(ch.m_module)->handle();
-		desc.hitgroup.entryFunctionNameCH = ch.m_entryName.c_str();
+		desc.hitgroup.moduleIS				= std::dynamic_pointer_cast<ModuleImpl>(is.m_module)->handle();
+		desc.hitgroup.entryFunctionNameIS	= (is.type() == Program::BuiltinIntersection) ? nullptr : is.m_entryName.c_str();
 	}
 
 	if (ah.valid())
 	{
-		desc.hitgroup.moduleAH = std::dynamic_pointer_cast<ModuleImpl>(ah.m_module)->handle();
-		desc.hitgroup.entryFunctionNameAH = ah.m_entryName.c_str();
+		desc.hitgroup.moduleAH				= std::dynamic_pointer_cast<ModuleImpl>(ah.m_module)->handle();
+		desc.hitgroup.entryFunctionNameAH	= ah.m_entryName.c_str();
+	}
+
+	if (ch.valid())
+	{
+		desc.hitgroup.moduleCH				= std::dynamic_pointer_cast<ModuleImpl>(ch.m_module)->handle();
+		desc.hitgroup.entryFunctionNameCH	= ch.m_entryName.c_str();
 	}
 
 	OptixResult err = optixProgramGroupCreate(context->handle(), &desc, 1, &options, nullptr, nullptr, &hProgramGroup);
@@ -397,7 +397,8 @@ ProgramImpl::~ProgramImpl()
 *********************************************************************************/
 
 Pipeline::Pipeline(SharedContext context, ns::ArrayProxy<std::shared_ptr<Program>> programs,
-				   const OptixPipelineCompileOptions & pipelineCompileOptions, const OptixPipelineLinkOptions & pipelineLinkOptions)
+				   const OptixPipelineCompileOptions & pipelineCompileOptions,
+				   const OptixPipelineLinkOptions & pipelineLinkOptions)
 	: m_context(context), m_hPipeline(nullptr)
 {
 	std::vector<OptixProgramGroup> programGroups(programs.size());

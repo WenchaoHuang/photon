@@ -100,19 +100,19 @@ namespace PHOTON_NAMESPACE
 		virtual const SbtHeader & header() const = 0;
 
 		//!	@brief		Create a miss program group.
-		PHOTON_API static std::shared_ptr<Program> miss(const ProgramEntry & entry);
+		PHOTON_API static std::shared_ptr<Program> miss(const ProgramEntry & ms);
 
 		//!	@brief		Create a raygen program group.
-		PHOTON_API static std::shared_ptr<Program> raygen(const ProgramEntry & entry);
+		PHOTON_API static std::shared_ptr<Program> raygen(const ProgramEntry & rg);
 
 		//!	@brief		Create an exception program group.
-		PHOTON_API static std::shared_ptr<Program> exception(const ProgramEntry & entry);
+		PHOTON_API static std::shared_ptr<Program> exception(const ProgramEntry & ex);
 
 		//!	@brief		Create a callables program group. Either entry can be empty.
 		PHOTON_API static std::shared_ptr<Program> callables(const ProgramEntry & dc, const ProgramEntry & cc);
 
 		//!	@brief		Create a hitgroup program group. Any entry can be empty (default ProgramEntry{}).
-		PHOTON_API static std::shared_ptr<Program> hitgroup(const ProgramEntry & is, const ProgramEntry & ch, const ProgramEntry & ah);
+		PHOTON_API static std::shared_ptr<Program> hitgroup(const ProgramEntry & is, const ProgramEntry & ah, const ProgramEntry & ch);
 	};
 
 	/*****************************************************************************
@@ -233,7 +233,6 @@ namespace PHOTON_NAMESPACE
 	private:
 
 		SharedContext		m_context;
-
 		OptixPipeline		m_hPipeline;
 	};
 }
