@@ -28,7 +28,7 @@
 
 #include <nucleus/stream.h>
 #include <nucleus/device.h>
-#include <nucleus/context.h>
+#include <nucleus/runtime.h>
 #include <nucleus/array_1d.h>
 
 #include <photon/pipeline.h>
@@ -389,7 +389,7 @@ static void showImageWindow(const EzColorRGB * image, unsigned int width, unsign
 int main()
 {
 	//	Initialize context and device
-	auto device = ns::Context::getInstance()->device(0);
+	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::SharedContext(device);
 	auto allocator = device->defaultAllocator();
 	auto & stream = device->defaultStream();

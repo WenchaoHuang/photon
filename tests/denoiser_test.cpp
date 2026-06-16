@@ -21,7 +21,7 @@
  */
 
 #include <nucleus/device.h>
-#include <nucleus/context.h>
+#include <nucleus/runtime.h>
 #include <nucleus/allocator.h>
 
 #include <photon/denoiser.h>
@@ -33,7 +33,7 @@
 
 void denoiser_test()
 {
-	auto device = ns::Context::getInstance()->device(0);
+	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::SharedContext(device);
 	auto denoiser = deviceContext->createDenoiser();
 	auto allocator = device->defaultAllocator();

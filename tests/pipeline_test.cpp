@@ -23,7 +23,7 @@
 
 #include <nucleus/stream.h>
 #include <nucleus/device.h>
-#include <nucleus/context.h>
+#include <nucleus/runtime.h>
 #include <nucleus/array_1d.h>
 
 #include <photon/pipeline.h>
@@ -38,7 +38,7 @@
 
 void pipeline_test()
 {
-	auto device = ns::Context::getInstance()->device(0);
+	auto device = ns::Runtime::device(0);
 	auto context = pt::SharedContext(device, 4, true);
 	auto allocator = device->defaultAllocator();
 	auto & stream = device->defaultStream();
