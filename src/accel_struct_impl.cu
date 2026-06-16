@@ -20,10 +20,8 @@
  *	SOFTWARE.
  */
 
+#include "accel_struct_builder_impl.h"
 #include "accel_struct.h"
-#include "device_context.h"
-#include <nucleus/launch_utils.cuh>
-#include <optix_stubs.h>
 
 PHOTON_USING_NAMESPACE
 
@@ -39,142 +37,20 @@ AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_devic
 
 void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, BuildOptions buildOptions)
 {
-	OptixAccelBufferSizes accelBufferSizes = {};
-	OptixAccelBuildOptions optixBuildOptions = {};
-
-	optixBuildOptions.buildFlags = buildOptions.buildFlags;
-	optixBuildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
-	optixBuildOptions.motionOptions = buildOptions.motionOptions;
-
-	OptixResult err = optixAccelComputeMemoryUsage(m_deviceContext->handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(), &accelBufferSizes);
-
-	if (err == OPTIX_SUCCESS)
-	{
-		buildOptions.headerSize = ns::align_up(buildOptions.headerSize, OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT);
-
-		//!	Last aligned 8-bytes for storing compacted size.
-		m_tempBuffer.resize(allocator, ns::align_up(NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes), alignof(uint64_t)) + sizeof(uint64_t));
-
-		if (buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION)
-		{
-			m_outputBuffer.resize(allocator, accelBufferSizes.outputSizeInBytes);
-
-			OptixAccelEmitDesc			emittedProp = {};
-			OptixTraversableHandle		outputHandle = 0;
-			emittedProp.type			= OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-			emittedProp.result			= CUdeviceptr(m_tempBuffer.data() + m_tempBuffer.size() - sizeof(uint64_t));
-
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
-								  m_outputBuffer.bytes(), &outputHandle, &emittedProp, 1);
-
-			if (err == OPTIX_SUCCESS)
-			{
-				uint64_t compactedSize = 0;
-
-				stream.memcpy<uint64_t>(&compactedSize, (const uint64_t*)emittedProp.result, 1).sync();
-
-				//!	First \p headerSize bytes for storing user data.
-				m_compactedBuffer.resize(allocator, buildOptions.headerSize + compactedSize);
-
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + buildOptions.headerSize),
-										m_compactedBuffer.bytes() - buildOptions.headerSize, &m_hTraversable);
-			}
-		}
-		else
-		{
-			//!	First \p headerSize bytes for storing user data.
-			m_outputBuffer.resize(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
-
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + buildOptions.headerSize),
-								  m_outputBuffer.bytes() - buildOptions.headerSize, &m_hTraversable, nullptr, 0);
-		}
-	}
-
-	if (err != OPTIX_SUCCESS)
-	{
-		NS_ERROR_LOG("Failed to build acceleration structure: %s.", optixGetErrorString(err));
-
-		throw err;
-	}
-
-	m_headerSize = buildOptions.headerSize;
-	m_buildOptions = optixBuildOptions;
+	AccelStructBuilder builder({ m_headerSize, m_tempBuffer, m_outputBuffer, m_compactedBuffer, m_hTraversable, m_buildOptions, m_deviceContext });
+	builder.build(stream, allocator, buildInputs, buildOptions);
 }
 
 
 void AccelStruct::rebuild(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs)
 {
-	if (m_hTraversable != 0)
-	{
-		OptixResult err = OPTIX_SUCCESS;
-
-		OptixTraversableHandle outputHandle = 0;
-
-		m_buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
-
-		if (this->allowCompaction())
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
-								  m_outputBuffer.bytes(), &outputHandle, nullptr, 0);
-
-			if (err == OPTIX_SUCCESS)
-			{
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
-										m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable);
-			}
-		}
-		else
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
-								  m_outputBuffer.bytes() - m_headerSize, &outputHandle, nullptr, 0);
-
-			m_hTraversable = outputHandle;
-		}
-
-		if (err != OPTIX_SUCCESS)
-		{
-			NS_ERROR_LOG("Failed to rebuild acceleration structure: %s.", optixGetErrorString(err));
-
-			throw err;
-		}
-	}
+	AccelStructBuilder builder({ m_headerSize, m_tempBuffer, m_outputBuffer, m_compactedBuffer, m_hTraversable, m_buildOptions, m_deviceContext });
+	builder.rebuild(stream, buildInputs);
 }
 
 
 void AccelStruct::refit(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs)
 {
-	OptixResult err = OPTIX_SUCCESS;
-
-	if (this->allowUpdate() && (m_hTraversable != 0))
-	{
-		m_buildOptions.operation = OPTIX_BUILD_OPERATION_UPDATE;
-
-		if (this->allowCompaction())
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
-								  m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
-		}
-		else
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
-								  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
-		}
-
-		if (err != OPTIX_SUCCESS)
-		{
-			NS_ERROR_LOG("Failed to refit acceleration structure: %s.", optixGetErrorString(err));
-
-			throw err;
-		}
-	}
-	else if (!this->allowUpdate())
-	{
-		NS_WARNING_LOG("Acceleration structure is non-updatable!");
-	}
+	AccelStructBuilder builder({ m_headerSize, m_tempBuffer, m_outputBuffer, m_compactedBuffer, m_hTraversable, m_buildOptions, m_deviceContext });
+	builder.refit(stream, buildInputs);
 }
