@@ -39,6 +39,15 @@ AccelStruct::AccelStruct(std::shared_ptr<DeviceContext> deviceContext) : m_devic
 
 void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::vector<OptixBuildInput> & buildInputs, BuildOptions buildOptions)
 {
+	//	Compaction is intentionally not supported (see class doc for rationale).
+	//	Strip the flag and warn if the caller passed it anyway.
+	if (buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION)
+	{
+		buildOptions.buildFlags = OptixBuildFlags(buildOptions.buildFlags & ~OPTIX_BUILD_FLAG_ALLOW_COMPACTION);
+
+		NS_WARNING_LOG("OPTIX_BUILD_FLAG_ALLOW_COMPACTION is not supported and will be ignored.");
+	}
+
 	OptixAccelBufferSizes accelBufferSizes = {};
 	OptixAccelBuildOptions optixBuildOptions = {};
 
@@ -52,44 +61,14 @@ void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::
 	{
 		buildOptions.headerSize = ns::align_up(buildOptions.headerSize, OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT);
 
-		//!	Last aligned 8-bytes for storing compacted size.
-		m_tempBuffer.resize(allocator, ns::align_up(NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes), alignof(uint64_t)) + sizeof(uint64_t));
+		m_tempBuffer.resize(allocator, NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes));
 
-		if (buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION)
-		{
-			m_outputBuffer.resize(allocator, accelBufferSizes.outputSizeInBytes);
+		//!	First \p headerSize bytes for storing user data.
+		m_outputBuffer.resize(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
 
-			OptixAccelEmitDesc			emittedProp = {};
-			OptixTraversableHandle		outputHandle = 0;
-			emittedProp.type			= OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-			emittedProp.result			= CUdeviceptr(m_tempBuffer.data() + m_tempBuffer.size() - sizeof(uint64_t));
-
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
-								  m_outputBuffer.bytes(), &outputHandle, &emittedProp, 1);
-
-			if (err == OPTIX_SUCCESS)
-			{
-				uint64_t compactedSize = 0;
-
-				stream.memcpy<uint64_t>(&compactedSize, (const uint64_t*)emittedProp.result, 1).sync();
-
-				//!	First \p headerSize bytes for storing user data.
-				m_compactedBuffer.resize(allocator, buildOptions.headerSize + compactedSize);
-
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + buildOptions.headerSize),
-										m_compactedBuffer.bytes() - buildOptions.headerSize, &m_hTraversable);
-			}
-		}
-		else
-		{
-			//!	First \p headerSize bytes for storing user data.
-			m_outputBuffer.resize(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
-
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + buildOptions.headerSize),
-								  m_outputBuffer.bytes() - buildOptions.headerSize, &m_hTraversable, nullptr, 0);
-		}
+		err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+							  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + buildOptions.headerSize),
+							  m_outputBuffer.bytes() - buildOptions.headerSize, &m_hTraversable, nullptr, 0);
 	}
 
 	if (err != OPTIX_SUCCESS)
@@ -110,30 +89,11 @@ void AccelStruct::rebuild(ns::Stream & stream, const std::vector<OptixBuildInput
 	{
 		OptixResult err = OPTIX_SUCCESS;
 
-		OptixTraversableHandle outputHandle = 0;
-
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
-		if (this->allowCompaction())
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), (CUdeviceptr)m_outputBuffer.data(),
-								  m_outputBuffer.bytes(), &outputHandle, nullptr, 0);
-
-			if (err == OPTIX_SUCCESS)
-			{
-				err = optixAccelCompact(m_deviceContext->handle(), stream.handle(), outputHandle, CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
-										m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable);
-			}
-		}
-		else
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
-								  m_outputBuffer.bytes() - m_headerSize, &outputHandle, nullptr, 0);
-
-			m_hTraversable = outputHandle;
-		}
+		err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+							  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
+							  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 
 		if (err != OPTIX_SUCCESS)
 		{
@@ -153,18 +113,9 @@ void AccelStruct::refit(ns::Stream & stream, const std::vector<OptixBuildInput> 
 	{
 		m_buildOptions.operation = OPTIX_BUILD_OPERATION_UPDATE;
 
-		if (this->allowCompaction())
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_compactedBuffer.data() + m_headerSize),
-								  m_compactedBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
-		}
-		else
-		{
-			err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
-								  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
-								  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
-		}
+		err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &m_buildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
+							  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.bytes(), CUdeviceptr(m_outputBuffer.data() + m_headerSize),
+							  m_outputBuffer.bytes() - m_headerSize, &m_hTraversable, nullptr, 0);
 
 		if (err != OPTIX_SUCCESS)
 		{

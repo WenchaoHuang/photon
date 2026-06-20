@@ -40,8 +40,26 @@ namespace PHOTON_NAMESPACE
 	*****************************    AccelStruct    ******************************
 	*****************************************************************************/
 
-	//	Base class for acceleration structures. Holds all common GPU buffer state
-	//	and implements rebuild/refit logic shared by all concrete subclasses.
+	/**
+	 *	@brief		Base class for acceleration structures.
+	 * 
+	 *	@details	Manages GPU buffer state and implements `build` / `rebuild` / `refit` logic
+	 *				shared by all concrete subclasses.
+	 *	
+	 *	A note on compaction (`OPTIX_BUILD_FLAG_ALLOW_COMPACTION`):
+	 *	Compaction would reduce GAS memory footprint by ~30-50% for static geometry,
+	 *	but introduces significant API and implementation complexity:
+	 *	- Requires a CPU-GPU sync after `optixAccelBuild` to read the compacted size,
+	 *	  breaking the async build pipeline.
+	 *	- Is mutually exclusive with `OPTIX_BUILD_FLAG_ALLOW_UPDATE`, meaning it
+	 *	  cannot be used with refit workflows (skinned meshes, particles, etc.).
+	 *	- Has no measurable effect on traversal performance.
+	 *	- Adds an extra GPU buffer and doubles the number of code paths in `build` / `rebuild` / `refit`.
+	 *	
+	 *	For these reasons, compaction is intentionally omitted from this wrapper.
+	 *	The single output buffer path keeps the implementation lean and the build
+	 *	pipeline fully asynchronous.
+	 */
 	class AccelStruct
 	{
 		NS_NONCOPYABLE(AccelStruct)
@@ -76,9 +94,6 @@ namespace PHOTON_NAMESPACE
 		//	Returns true if the acceleration structure was built with update support.
 		bool allowUpdate() const { return (m_buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE) != 0; }
 
-		//	Returns true if compaction was enabled when the structure was built.
-		bool allowCompaction() const { return (m_buildOptions.buildFlags & OPTIX_BUILD_FLAG_ALLOW_COMPACTION) != 0; }
-
 		/**
 		 *	@brief		Device pointer to the header buffer of a GAS (Geometry Acceleration Structure).
 		 *
@@ -105,12 +120,7 @@ namespace PHOTON_NAMESPACE
 		 */
 		dev::Ptr<unsigned char> gasHeaderBuffer()
 		{
-			if ((m_headerSize != 0) && this->allowCompaction())
-				return dev::Ptr<unsigned char>(m_compactedBuffer.data(), m_headerSize);
-			else if (m_headerSize != 0)
-				return dev::Ptr<unsigned char>(m_outputBuffer.data(), m_headerSize);
-			else
-				return dev::Ptr<unsigned char>(nullptr);
+			return (m_headerSize != 0) ? dev::Ptr<unsigned char>(m_outputBuffer.data(), m_headerSize) : dev::Ptr<unsigned char>(nullptr);
 		}
 
 	protected:
@@ -130,7 +140,6 @@ namespace PHOTON_NAMESPACE
 		size_t											m_headerSize;
 		ns::Array<unsigned char>						m_tempBuffer;
 		ns::Array<unsigned char>						m_outputBuffer;
-		ns::Array<unsigned char>						m_compactedBuffer;
 		OptixTraversableHandle							m_hTraversable;
 		OptixAccelBuildOptions							m_buildOptions;
 		std::vector<OptixBuildInput>					m_cachedBuildInputs;
