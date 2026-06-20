@@ -62,34 +62,25 @@ void pipeline_test()
 	auto entry_ah = module->entry("__anyhit__");
 	auto entry_ms = module->entry("__miss__");
 
-	assert(!entry0.valid());
-	assert(!entry1.valid());
-	assert(entry_rg.valid());
-	assert(entry_ch.valid());
-	assert(entry_ms.valid());
-
-	assert(entry_rg.type() == pt::Program::Raygen);
-	assert(entry_ex.type() == pt::Program::Exception);
-	assert(entry_dc.type() == pt::Program::DirectCallable);
-	assert(entry_cc.type() == pt::Program::ContinuationCallable);
-	assert(entry_is.type() == pt::Program::Intersection);
-	assert(entry_ch.type() == pt::Program::ClosestHit);
-	assert(entry_ah.type() == pt::Program::AnyHit);
-	assert(entry_ms.type() == pt::Program::Miss);
+	assert(!entry0.module);
+	assert(!entry1.module);
+	assert(entry_rg.module);
+	assert(entry_ch.module);
+	assert(entry_ms.module);
 
 	auto program_ms = pt::Program::miss(entry_ms);
 	auto program_rg = pt::Program::raygen(entry_rg);
 	auto program_ex = pt::Program::exception(entry_ex);
-	auto program_hg = pt::Program::hitgroup(entry_is, entry_ch, entry_ah);
+	auto program_hg = pt::Program::hitgroup(entry_is, entry_ah, entry_ch);
 	auto program_cg = pt::Program::callables(entry_dc, entry_cc);
-	auto program_ch = pt::Program::hitgroup({}, entry_ch, {});
+	auto program_ch = pt::Program::hitgroup({}, {}, entry_ch);
 
 	OptixBuiltinISOptions builtinISOptions = {};
 	builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
 	auto builtin_is = context->getBuiltinISEntry(builtinISOptions, pipelineCompileOptions);
-	auto program_bi = pt::Program::hitgroup(builtin_is, entry_ch, {});
+	auto program_bi = pt::Program::hitgroup(builtin_is, {}, entry_ch);
 
-	assert(builtin_is.valid());
+	assert(builtin_is.module);
 	assert(program_rg != nullptr);
 	assert(program_ms != nullptr);
 	assert(program_ex != nullptr);
@@ -97,14 +88,6 @@ void pipeline_test()
 	assert(program_cg != nullptr);
 	assert(program_ch != nullptr);
 	assert(program_bi != nullptr);
-
-	assert(program_ms->type() == pt::Program::Miss);
-	assert(program_rg->type() == pt::Program::Raygen);
-	assert(program_hg->type() == pt::Program::HitGroup);
-	assert(program_ch->type() == pt::Program::HitGroup);
-	assert(program_bi->type() == pt::Program::HitGroup);
-	assert(program_ex->type() == pt::Program::Exception);
-	assert(program_cg->type() == pt::Program::CallableGroup);
 
 	ns::Array<LaunchParams>			launchParams(allocator, 1);
 	ns::Array<pt::SbtRecord<>>		raygenRecord(allocator, 1);

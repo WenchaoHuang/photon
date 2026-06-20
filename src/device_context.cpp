@@ -146,13 +146,13 @@ ProgramEntry DeviceContext::getBuiltinISEntry(OptixBuiltinISOptions builtinISOpt
 	{
 		NS_ERROR_LOG("%s.", optixGetErrorString(err));
 
-		return ProgramEntry(nullptr, Program::Unknow, "");
+		return ProgramEntry(nullptr, "");
 	}
 
 	// Wrap the builtin module in a ModuleImpl for lifetime management
 	auto module = std::make_shared<ModuleImpl>(this->shared_from_this(), hBuiltinModule);
 
-	return ProgramEntry(module, Program::BuiltinIntersection, "__builtin_intersection__");
+	return ProgramEntry(module, "__builtin_intersection__");
 }
 
 

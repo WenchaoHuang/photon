@@ -27,6 +27,29 @@
 namespace PHOTON_NAMESPACE
 {
 	/*****************************************************************************
+	*****************************    ProgramType    ******************************
+	*****************************************************************************/
+
+	/**
+	 *	@brief		Supported OptiX program types.
+	 */
+	enum ProgramType
+	{
+		Miss,						//	prefix "__miss__"
+		AnyHit,						//	prefix "__anyhit__"
+		Raygen,						//	prefix "__raygen__"
+		Exception,					//	prefix "__exception__"
+		ClosestHit,					//	prefix "__closesthit__"
+		Intersection,				//	prefix "__intersection__"
+		DirectCallable,				//	prefix "__direct_callable__"
+		ContinuationCallable,		//	prefix "__continuation_callable__"
+		BuiltinIntersection,
+		CallableGroup,
+		HitGroup,
+		Unknow,
+	};
+
+	/*****************************************************************************
 	******************************    ModuleImpl    ******************************
 	*****************************************************************************/
 
@@ -49,10 +72,6 @@ namespace PHOTON_NAMESPACE
 
 	private:
 
-		static Program::Type queryProgramType(const std::string & funcName);
-
-	private:
-
 		const std::shared_ptr<DeviceContext>		m_deviceContext;
 		const OptixModule							m_hModule;
 	};
@@ -66,7 +85,7 @@ namespace PHOTON_NAMESPACE
 
 	public:
 
-		ProgramImpl(std::shared_ptr<DeviceContext> context, OptixProgramGroup hProgramGroup, Program::Type type);
+		ProgramImpl(std::shared_ptr<DeviceContext> context, OptixProgramGroup hProgramGroup, ProgramType type);
 
 		~ProgramImpl();
 
@@ -74,15 +93,13 @@ namespace PHOTON_NAMESPACE
 
 		virtual const SbtHeader & header() const override { return m_header; }
 
-		virtual Type type() const override { return m_progType; }
-
 		OptixProgramGroup handle() { return m_hProgramGroup; }
 
 	private:
 
 		const OptixProgramGroup						m_hProgramGroup;
 		const std::shared_ptr<DeviceContext>		m_deviceContext;
-		const Program::Type							m_progType;
+		const ProgramType							m_progType;
 		SbtHeader									m_header;
 	};
 }
