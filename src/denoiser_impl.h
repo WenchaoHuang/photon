@@ -66,11 +66,11 @@ namespace PHOTON_NAMESPACE
 		unsigned int								m_maxInputHeight;
 		unsigned int								m_currInternalGuideLayer;
 		OptixDenoiser								m_hDenoiser;
-		ns::Array<unsigned char>					m_stateCache;
-		ns::Array<unsigned char>					m_scratchCache;
-		ns::Array<unsigned char>					m_avgColorCache;
-		ns::Array<unsigned char>					m_intensityCache;
-		ns::Array2D<unsigned char>					m_internalGuideLayers[2];
+		ns::Array<ns::byte>						m_stateCache;
+		ns::Array<ns::byte>						m_scratchCache;
+		ns::Array<ns::byte>						m_avgColorCache;
+		ns::Array<ns::byte>						m_intensityCache;
+		ns::Array2D<ns::byte>						m_internalGuideLayers[2];
 		const std::shared_ptr<DeviceContext>		m_deviceContext;
 	};
 }

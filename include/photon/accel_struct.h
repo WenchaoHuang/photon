@@ -138,8 +138,8 @@ namespace PHOTON_NAMESPACE
 		PHOTON_API void refit(ns::Stream & stream, const std::vector<OptixBuildInput> & buildInputs);
 
 		size_t											m_headerSize;
-		ns::Array<unsigned char>						m_tempBuffer;
-		ns::Array<unsigned char>						m_outputBuffer;
+		ns::Array<ns::byte>								m_tempBuffer;
+		ns::Array<ns::byte>								m_outputBuffer;
 		OptixTraversableHandle							m_hTraversable;
 		OptixAccelBuildOptions							m_buildOptions;
 		std::vector<OptixBuildInput>					m_cachedBuildInputs;
