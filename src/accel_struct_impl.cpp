@@ -22,7 +22,8 @@
 
 #include "accel_struct.h"
 #include "device_context.h"
-#include <nucleus/launch_utils.cuh>
+#include <nucleus/utility.h>
+#include <nucleus/stream.h>
 #include <optix_stubs.h>
 
 PHOTON_USING_NAMESPACE
