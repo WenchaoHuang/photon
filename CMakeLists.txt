@@ -23,6 +23,11 @@ cmake_minimum_required(VERSION 3.18)
 # Project name: Photon
 project(Photon VERSION 0.1.0 LANGUAGES CXX CUDA)
 
+# Find Nucleus library
+if(NOT TARGET Nucleus::nucleus)
+	find_package(Nucleus CONFIG REQUIRED)
+endif()
+
 # Organize targets into folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
