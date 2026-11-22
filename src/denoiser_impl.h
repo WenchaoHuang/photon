@@ -1,4 +1,4 @@
-/**
+﻿/**
  *	Copyright (c) 2025 Wenchao Huang <physhuangwenchao@gmail.com>
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,7 +23,7 @@
 
 #include "denoiser.h"
 #include "device_context.h"
-#include <nucleus/array_1d.h>
+#include <nucleus/array.h>
 #include <nucleus/array_2d.h>
 
 namespace PHOTON_NAMESPACE

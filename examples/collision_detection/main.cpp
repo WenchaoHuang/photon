@@ -23,10 +23,10 @@
 #include <random>
 #include <stdlib.h>
 
+#include <nucleus/array.h>
 #include <nucleus/stream.h>
 #include <nucleus/device.h>
 #include <nucleus/runtime.h>
-#include <nucleus/array_1d.h>
 #include <nucleus/scoped_timer.h>
 
 #include <photon/pipeline.h>
@@ -94,7 +94,7 @@ int main()
 	//	accel-struct
 	pt::AccelStructAabb accelStruct(deviceContext);
 	pt::BuildInputAabbs buildInput;
-	buildInput.setAabbBuffer(aabbBuffer.span());
+	buildInput.setAabbBuffer(aabbBuffer);
 
 	pt::AccelStruct::BuildOptions buildOptions = { .headerSize = 200 };
 
@@ -103,8 +103,8 @@ int main()
 	//	launch parameters
 	LaunchParams hostLaunchParams = {};
 	hostLaunchParams.radius = radius;
-	hostLaunchParams.count = devCount.span();
-	hostLaunchParams.vertices = vertPos.span();
+	hostLaunchParams.count = devCount;
+	hostLaunchParams.vertices = vertPos;
 	hostLaunchParams.traversable = accelStruct.handle();
 
 	//	Upload data

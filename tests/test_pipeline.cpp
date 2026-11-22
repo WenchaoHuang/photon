@@ -21,10 +21,10 @@
  */
 #pragma once
 
+#include <nucleus/array.h>
 #include <nucleus/stream.h>
 #include <nucleus/device.h>
 #include <nucleus/runtime.h>
-#include <nucleus/array_1d.h>
 
 #include <photon/pipeline.h>
 #include <photon/device_context.h>

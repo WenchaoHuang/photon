@@ -20,10 +20,10 @@
  *	SOFTWARE.
  */
 
+#include <nucleus/array.h>
 #include <nucleus/device.h>
 #include <nucleus/stream.h>
 #include <nucleus/runtime.h>
-#include <nucleus/array_1d.h>
 
 #include <photon/accel_struct.h>
 #include <photon/device_context.h>

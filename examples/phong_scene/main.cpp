@@ -26,10 +26,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <nucleus/array.h>
 #include <nucleus/stream.h>
 #include <nucleus/device.h>
 #include <nucleus/runtime.h>
-#include <nucleus/array_1d.h>
+#include <nucleus/device_span.h>
 
 #include <photon/pipeline.h>
 #include <photon/sbt_record.h>
@@ -109,8 +110,8 @@ static void buildTriangleGAS(pt::AccelStructTriangle & accelStruct,
 	stream.memcpy(indexBuffer.data(), indices.data(), indices.size());
 
 	pt::BuildInputTriangles buildInput;
-	buildInput.setIndexBuffer(indexBuffer.span());
-	buildInput.setVertexBuffer(vertexBuffer.span());
+	buildInput.setIndexBuffer(indexBuffer);
+	buildInput.setVertexBuffer(vertexBuffer);
 
 	accelStruct.build(stream, allocator, { buildInput }, {});
 }

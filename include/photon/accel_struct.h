@@ -1,4 +1,4 @@
-/**
+﻿/**
  *	Copyright (c) 2025 Wenchao Huang <physhuangwenchao@gmail.com>
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,7 +24,7 @@
 #include "fwd.h"
 #include "build_inputs.h"
 #include <nucleus/span.h>
-#include <nucleus/array_1d.h>
+#include <nucleus/array.h>
 #include <nucleus/device_span.h>
 #include <nucleus/vector_types.h>
 #include <optix.h>
