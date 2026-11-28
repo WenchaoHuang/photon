@@ -36,7 +36,7 @@ void test_denoiser()
 	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::DeviceContext::create(device);
 	auto denoiser = deviceContext->createDenoiser();
-	auto allocator = device->defaultAllocator();
+	auto allocator = device->default_allocator();
 
 #if OPTIX_VERSION > 70500
 	denoiser->preallocate(allocator, pt::Denoiser::TemporalUpscale2x, 1024, 1024);

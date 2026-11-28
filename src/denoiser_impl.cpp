@@ -236,17 +236,17 @@ void DenoiserImpl::preallocate(ns::AllocPtr pAlloc, ModelKind eModeKind, unsigne
 			else
 			{
 			#if OPTIX_VERSION >= 70100
-				m_scratchCache.resize(pAlloc, cacheSizes.withoutOverlapScratchSizeInBytes);
+				m_scratchCache = ns::Array<ns::byte>(pAlloc, cacheSizes.withoutOverlapScratchSizeInBytes);
 			#else
 				m_scratchCache.resize(pAlloc, cacheSizes.recommendedScratchSizeInBytes);
 			#endif
 			#if OPTIX_VERSION >= 70500
 				m_internalGuideLayers[0].resize(pAlloc, cacheSizes.internalGuideLayerPixelSizeInBytes * maxInputWidth, maxInputHeight);
 				m_internalGuideLayers[1].resize(pAlloc, cacheSizes.internalGuideLayerPixelSizeInBytes * maxInputWidth, maxInputHeight);
-				m_avgColorCache.resize(pAlloc, cacheSizes.computeAverageColorSizeInBytes);
-				m_intensityCache.resize(pAlloc, cacheSizes.computeIntensitySizeInBytes);
+				m_avgColorCache = ns::Array<ns::byte>(pAlloc, cacheSizes.computeAverageColorSizeInBytes);
+				m_intensityCache = ns::Array<ns::byte>(pAlloc, cacheSizes.computeIntensitySizeInBytes);
 			#endif
-				m_stateCache.resize(pAlloc, cacheSizes.stateSizeInBytes);
+				m_stateCache = ns::Array<ns::byte>(pAlloc, cacheSizes.stateSizeInBytes);
 				m_maxInputHeight = maxInputHeight;
 				m_maxInputWidth = maxInputWidth;
 				m_eModelKind = eModeKind;
@@ -296,10 +296,10 @@ void DenoiserImpl::release()
 
 		NS_ERROR_LOG_IF(eResult != OPTIX_SUCCESS, "Failed to destroy Optix denoiser: %s.", optixGetErrorString(eResult));
 
-		m_stateCache.clear();
-		m_scratchCache.clear();
-		m_avgColorCache.clear();
-		m_intensityCache.clear();
+		m_stateCache.release();
+		m_scratchCache.release();
+		m_avgColorCache.release();
+		m_intensityCache.release();
 		m_internalGuideLayers[0].clear();
 		m_internalGuideLayers[1].clear();
 		m_eModelKind = ModelKind::Normal;

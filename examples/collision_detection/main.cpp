@@ -64,8 +64,8 @@ int main()
 	//	context
 	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::DeviceContext::create(device);
-	auto allocator = device->defaultAllocator();
-	auto & stream = device->defaultStream();
+	auto allocator = device->default_allocator();
+	auto & stream = device->default_stream();
 
 	//	pipeline
 	OptixModuleCompileOptions moduleCompileOptions = {};
@@ -94,7 +94,7 @@ int main()
 	//	accel-struct
 	pt::AccelStructAabb accelStruct(deviceContext);
 	pt::BuildInputAabbs buildInput;
-	buildInput.setAabbBuffer(aabbBuffer);
+	buildInput.setAabbBuffer(aabbBuffer.span());
 
 	pt::AccelStruct::BuildOptions buildOptions = { .headerSize = 200 };
 
@@ -124,12 +124,16 @@ int main()
 	sbt.missRecordCount = 1;
 
 	double timeCost = 0.0;
+	std::future<std::chrono::nanoseconds> futureTimeCost;
 	stream.memset(devCount.data(), 0, devCount.size_bytes()).sync();
 	{
-		ns::ScopedTimer scopedTimer(stream, [&](std::chrono::nanoseconds ns) { timeCost = ns.count() * 1e-3; });
+		ns::ScopedTimer scopedTimer(stream);
 
 		pipeline.launch<LaunchParams>(stream, devLaunchParams, sbt, (int)count);
+
+		futureTimeCost = scopedTimer.get_future();
 	}
+	timeCost = futureTimeCost.get().count() * 1e-3;
 
 	//	Download data
 	int hostCount = 0;

@@ -110,8 +110,8 @@ static void buildTriangleGAS(pt::AccelStructTriangle & accelStruct,
 	stream.memcpy(indexBuffer.data(), indices.data(), indices.size());
 
 	pt::BuildInputTriangles buildInput;
-	buildInput.setIndexBuffer(indexBuffer);
-	buildInput.setVertexBuffer(vertexBuffer);
+	buildInput.setIndexBuffer(indexBuffer.span());
+	buildInput.setVertexBuffer(vertexBuffer.span());
 
 	accelStruct.build(stream, allocator, { buildInput }, {});
 }
@@ -345,8 +345,8 @@ int main()
 	//	Initialize context and device
 	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::DeviceContext::create(device);
-	auto allocator = device->defaultAllocator();
-	auto & stream = device->defaultStream();
+	auto allocator = device->default_allocator();
+	auto & stream = device->default_stream();
 
 	//	========================================================================
 	//	Pipeline setup

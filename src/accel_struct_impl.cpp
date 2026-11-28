@@ -22,6 +22,7 @@
 
 #include "accel_struct.h"
 #include "device_context.h"
+#include <nucleus/logger.h>
 #include <nucleus/utility.h>
 #include <nucleus/stream.h>
 #include <optix_stubs.h>
@@ -62,10 +63,10 @@ void AccelStruct::build(ns::Stream & stream, ns::AllocPtr allocator, const std::
 	{
 		buildOptions.headerSize = ns::align_up(buildOptions.headerSize, OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT);
 
-		m_tempBuffer.resize(allocator, NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes));
+		m_tempBuffer = ns::Array<ns::byte>(allocator, NS_MAX(accelBufferSizes.tempSizeInBytes, accelBufferSizes.tempUpdateSizeInBytes));
 
 		//!	First \p headerSize bytes for storing user data.
-		m_outputBuffer.resize(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
+		m_outputBuffer = ns::Array<ns::byte>(allocator, buildOptions.headerSize + accelBufferSizes.outputSizeInBytes);
 
 		err = optixAccelBuild(m_deviceContext->handle(), stream.handle(), &optixBuildOptions, buildInputs.data(), (uint32_t)buildInputs.size(),
 							  (CUdeviceptr)m_tempBuffer.data(), m_tempBuffer.size_bytes(), CUdeviceptr(m_outputBuffer.data() + buildOptions.headerSize),

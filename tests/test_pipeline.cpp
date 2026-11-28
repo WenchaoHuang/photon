@@ -40,8 +40,8 @@ void test_pipeline()
 {
 	auto device = ns::Runtime::device(0);
 	auto context = pt::DeviceContext::create(device, 4, true);
-	auto allocator = device->defaultAllocator();
-	auto & stream = device->defaultStream();
+	auto allocator = device->default_allocator();
+	auto & stream = device->default_stream();
 
 	assert(context->device() == device);
 

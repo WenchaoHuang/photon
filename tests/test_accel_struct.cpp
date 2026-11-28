@@ -36,8 +36,8 @@ void test_accel_struct()
 {
 	auto device = ns::Runtime::device(0);
 	auto deviceContext = pt::DeviceContext::create(device);
-	auto allocator = device->defaultAllocator();
-	auto & stream = device->defaultStream();
+	auto allocator = device->default_allocator();
+	auto & stream = device->default_stream();
 
 	//	Accel structs can be directly constructed by passing a device context.
 	auto instAccelStruct = std::make_unique<pt::InstAccelStruct>(deviceContext);
